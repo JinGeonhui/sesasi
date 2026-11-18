@@ -1,0 +1,25 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { parseEnv } from 'node:util';
+const ref = readFileSync('supabase/.temp/project-ref', 'utf8').trim();
+if (!/^[a-z]{20}$/.test(ref)) throw new Error('Invalid linked project');
+const owner = process.argv[2]?.trim().toLowerCase();
+if (!owner || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner)) throw new Error('Owner email required');
+const output = execFileSync('node_modules/.bin/supabase', ['projects', 'api-keys', '--remote=' + ref, '--reveal', '--output-format', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const result = JSON.parse(output);
+const keys = Array.isArray(result) ? result : result.api_keys ?? result.apiKeys ?? result.keys;
+if (!Array.isArray(keys)) { console.log('Unexpected CLI response fields:', Object.keys(result)); process.exit(1); }
+const publicEntry = keys.find(key => key.type === 'publishable') ?? keys.find(key => key.name === 'anon');
+const secretEntry = keys.find(key => key.name === 'service_role') ?? keys.find(key => key.type === 'secret');
+const publicKey = publicEntry?.api_key ?? publicEntry?.key;
+const secretKey = secretEntry?.api_key ?? secretEntry?.key;
+if (!publicKey || !secretKey || publicKey.startsWith('sb_secret_') || secretKey.includes('***')) throw new Error('Required API keys missing or masked');
+const url = `https://${ref}.supabase.co`;
+const transit = parseEnv(readFileSync('.env.transit.local', 'utf8'));
+const discord = parseEnv(readFileSync('.env.discord.local', 'utf8'));
+const lines = obj => Object.entries(obj).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join('\n') + '\n';
+writeFileSync('.env.supabase.secrets.local', lines({ SESASI_OWNER_EMAIL: owner, SESASI_ALLOWED_ORIGINS: 'http://localhost:3000,http://127.0.0.1:3000,https://appassets.androidplatform.net', TAGO_SERVICE_KEY: transit.TAGO_SERVICE_KEY ?? '', DISCORD_WEBHOOK_URL: discord.DISCORD_WEBHOOK_URL ?? '', DISCORD_SYNC_FROM: discord.DISCORD_SYNC_FROM ?? '2026-11-19' }), { mode: 0o600 });
+writeFileSync('.env.supabase.client.local', lines({ NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }), { mode: 0o600 });
+mkdirSync('supabase/.temp', { recursive: true });
+writeFileSync('supabase/.temp/bootstrap.json', JSON.stringify({ url, owner, publicKey, secretKey }), { mode: 0o600 });
+console.log(JSON.stringify({ project: ref, clientConfigurationPrepared: true, serverSecretsPrepared: true, ownerConfigured: true }));

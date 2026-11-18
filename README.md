@@ -1,36 +1,167 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 세사시 — 나를 이루는 순간들
 
-## Getting Started
+사진이 한 장씩 위아래로 넘어가는 필름 다이얼로 기억을 고르는 개인 아카이브입니다. 선택한 필름을 펼치면 같은 아트를 왼쪽에 크게, 경험과 이야기를 오른쪽에 보여 줍니다. 기존 분기 연결과 기록 데이터는 유지하며 메인 탐색 방식을 필름으로 바꿨습니다. Next.js + React로 작성했으며 정적 파일로 배포할 수 있습니다. 플래너의 날씨 카드는 Open-Meteo를 조회합니다. Supabase 설정이 있으면 개인 계정으로 인증한 뒤 클라우드 서버를 통해 조회합니다. 설정이 없는 localhost에서는 교통 조회 서버(4191)를, 별도 서버 설정이 없는 정적 배포에서는 직접 조회를 사용합니다.
 
-First, run the development server:
+## 실행과 배포
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+미리보기: http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`npm run dev`는 Supabase 설정이 있으면 웹 화면만 실행하고 클라우드 API를 사용합니다. 설정이 없으면 웹 화면과 교통 조회·디스코드 연결 서버를 함께 실행합니다. 교통 API 키는 `.env.transit.local`에서 조회 서버만 읽습니다. 종료 시 함께 실행한 연결 서버도 종료되며, 이미 따로 실행 중인 연결 서버는 유지합니다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+생성된 `out/` 폴더를 정적 호스팅에 배포합니다. 정적 내보내기 프로젝트이므로 `next start`는 사용하지 않습니다.
 
-To learn more about Next.js, take a look at the following resources:
+## Supabase 개인 서버
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+공식 Supabase Free 프로젝트 `sesasi`에 TypeScript Edge Functions를 배포합니다. 데이터베이스 지역은 서울입니다. 날씨 함수는 서울에서 Open-Meteo로 향하는 요청이 반복 지연된 배포 검증 결과에 따라 `x-region: eu-central-1`로 프랑크푸르트에서 실행하며, 교통·디스코드는 기본 인접 지역에서 실행합니다. 백엔드는 같은 저장소의 `supabase/functions/`, 데이터베이스 변경은 `supabase/migrations/`에서 관리합니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `weather`: 날씨·대기질 조회, 요청 병합과 캐시, 외부 API 지연·제한 처리
+- `transit`: TAGO 교통 조회. 인증키는 서버에만 보관
+- `discord-sync`: 날짜별 메모 전송 및 수정. 메시지 ID·재시도 상태를 비공개 데이터베이스에 보관
 
-## Deploy on Vercel
+`.env.local`에 다음 공개 연결값을 넣고 개발 서버를 재시작합니다. 서비스 역할 키나 디스코드 웹후크를 `NEXT_PUBLIC_` 변수에 넣지 않습니다.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**설정 → 개인 계정**에서 등록된 소유자 이메일로 로그인합니다. 일반 회원가입은 비활성화하며, 모든 API가 인증된 소유자 계정인지 서버에서 검사합니다. 로그인 상태는 해당 브라우저에 유지됩니다. 새로운 기기에서는 다시 로그인해야 합니다.
+
+서버 환경변수는 Git에서 제외한 `.env.supabase.secrets.local`로 관리합니다.
+
+```dotenv
+SESASI_OWNER_EMAIL=YOUR_EMAIL
+SESASI_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+TAGO_SERVICE_KEY=YOUR_TAGO_KEY
+DISCORD_WEBHOOK_URL=YOUR_DISCORD_WEBHOOK
+DISCORD_SYNC_FROM=2026-11-19
+```
+
+```bash
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT
+npx supabase db push --remote --yes
+npx supabase config push --yes
+npx supabase secrets set --env-file .env.supabase.secrets.local --yes
+npm run supabase:deploy
+```
+
+초기 연결 보조 스크립트 `scripts/supabase-prepare.mjs EMAIL`은 기존 로컬 환경변수와 연결한 프로젝트의 API 키를 읽어 비공개 설정 파일을 준비합니다. `scripts/supabase-verify.mjs`는 소유자 인증과 실제 API 응답을 확인하고 초기 브라우저 로그인을 위한 일회용 링크를 준비합니다. 메일이나 디스코드 테스트 메시지를 보내지 않습니다. 검증 후 `supabase/.temp/bootstrap.json`, `supabase/.temp/browser-login.json`은 삭제합니다. 이후 로그인은 설정의 이메일 링크를 이용합니다.
+
+이메일 로그인에는 Supabase Auth의 메일 발송 정책이 적용됩니다. 기본 메일 서비스는 프로젝트 팀원의 주소만 허용하며, 다른 이메일로 운영하려면 SMTP 설정이 필요합니다. 현재 소유자 계정으로만 사용하는 구성이며 비밀번호를 코드에 저장하지 않습니다.
+
+클라우드 모드에서는 로컬 4191·4192 서버가 필요 없습니다. 웹 화면은 아직 `npm run dev`로 열며, 공개 웹 호스팅은 별도입니다. 메모·일정·사진의 원본은 기존 브라우저 저장소에 그대로 있으므로 기기 간 전체 기록 동기화는 제공하지 않습니다. 디스코드에는 앱을 열어 편집한 메모가 반영되고, 실패한 전송은 앱이 열려 있을 때 약 60초마다 재시도합니다. 브라우저가 닫혀 있는 동안 재시도하는 예약 작업은 없습니다.
+
+검증: `npm run test:cloud`, `npm run check:cloud`, `npm run build`. 데이터베이스 권한·동시 처리 검증은 `npx supabase db query --remote --file tests/cloud-database.sql --yes`로 실행하며 테스트 데이터는 롤백합니다. Supabase 공식 문서: [Edge Functions](https://supabase.com/docs/guides/functions), [메일 서비스](https://supabase.com/docs/guides/auth/auth-smtp).
+
+## 사용 방법
+
+- **기록 추가**: 메인 왼쪽 아래의 `+`를 눌러 날짜, 사진(최대 12장), 제목, 글을 작성합니다. 날짜 옆의 **선택하지 않음**을 체크하면 날짜 없이 저장할 수 있습니다. 날짜 없는 분기는 부모 기록 뒤에, 연결 없는 기록은 필름 끝에 배치하며 상세 화면에는 날짜를 표시하지 않습니다. 수정 및 백업·복원에서도 같은 선택을 유지합니다.
+- **상세 보기**: 가운데 필름 또는 **이 기억 펼치기**를 누릅니다. 지원 브라우저에서는 선택 이미지가 상세 아트로 이어지는 전환을 사용하며, 돌아오면 같은 필름이 선택되어 있습니다. 넓은 화면에서는 대표 아트를 왼쪽에 크게 기울여 놓고, 오른쪽에 제목·소개·본문을 서로 다른 들여쓰기로 배치합니다. 경험·역량은 높이를 달리한 작은 라벨로, 추가 이미지는 크기와 높이가 어긋난 구성으로 표시합니다. 좁은 화면에서는 아트 다음에 글이 이어집니다. `#story/기록ID` 주소와 브라우저 뒤로 가기를 지원합니다.
+- **아트와 내용 작성**: 이미지 중 **대표로**를 눌러 대표 아트를 바꿀 수 있습니다. **짧은 소개**는 최대 240자, **경험 · 역량**은 역할·기술·성과·자격처럼 직접 이름을 정해 최대 6개 작성합니다. 모두 선택 항목이며 기존 기록도 그대로 열립니다. 아트의 색감과 PNG·WebP의 투명 배경을 보존합니다.
+- **분기 추가**: 상세 화면의 **이 순간에서 분기 추가**를 누릅니다. 작성 화면에서도 연결할 기록을 선택할 수 있습니다. 상세 화면에서 이전 기록과 이어진 분기로 이동할 수 있습니다.
+- **수정·삭제**: 상세 화면에서 실행합니다. 삭제 전 확인하며 하위 분기는 보존하고 이전 부모에 다시 연결합니다.
+- **이동**: 마우스 휠, 필름의 위아래 드래그·터치 스와이프, 원형 다이얼 회전, 이전·다음 버튼을 지원합니다. 마지막 다음에는 첫 기록으로, 첫 기록 이전에는 마지막으로 계속 순환합니다. 필름과 회전 눈금도 같은 방향으로 이어집니다. 방향키로 한 장씩, Home·End로 처음·끝, Enter로 상세 화면을 엽니다. 자동 재생이나 소리는 없으며 `prefers-reduced-motion` 설정에서는 움직임을 줄입니다.
+- **백업·복원**: 메인 왼쪽 아래의 `···` 메뉴에서 실행합니다. 아트·소개·경험 항목·글을 JSON 파일로 내려받거나 불러올 수 있습니다. 복원은 기존 기록을 교체하므로 먼저 백업하세요.
+
+## 작업 페이지
+
+작업 페이지의 컴포넌트는 Artroom의 밝은 회색·흰색 바탕과 파란색 강조를 참고합니다. 공통 색상과 모서리 값은 `app/planner/planner.css`의 `.daybook`에서 관리하며, 버튼·입력창은 6px 모서리와 최소 44px 높이를 사용합니다. 홈 바로가기와 설정 메뉴는 아이콘·제목·설명을 가진 `FeatureLink`를 공유합니다.
+
+프로젝트 전체에서 기록(필름) 영역은 **서사 페이지**, 그 외 기능이 있는 영역은 **작업 페이지**라고 부릅니다. 서사 페이지 오른쪽 아래의 **일정 관리**를 누르면 작업 페이지(데이북)가 열립니다. 휴대폰에서는 하단 탭, 넓은 화면에서는 상단 메뉴로 이동합니다.
+
+기본 메뉴는 **홈 · 설정**입니다. 기존 '한눈에 보기'는 **홈**으로 부릅니다. 캘린더·할 일·교통 노선·작업 메모는 홈의 바로가기로 이동합니다. 홈의 기존 '오늘의 할 일' 영역은 **메모**로 표시하며, 일정 조회·추가는 캘린더에서 합니다. 다른 날의 일정·메모는 **설정 → 기록**에서 주간 선택이나 날짜 입력으로 확인합니다.
+
+각 기능은 고유한 URL과 페이지 진입점을 가지므로 직접 접속하거나 새로고침해도 해당 기능이 열리며, 브라우저 뒤로·앞으로 가기로 기능 사이를 이동할 수 있습니다.
+
+| 기능 | 주소 |
+| --- | --- |
+| 홈 | `/planner/` |
+| 캘린더 | `/planner/calendar/` |
+| 할 일 | `/planner/todos/` |
+| 교통 노선 | `/planner/routes/` |
+| 작업 메모 | `/planner/notes/` |
+| 설정 | `/planner/settings/` |
+| 카테고리 관리 | `/planner/settings/categories/` |
+| 기록 | `/planner/settings/history/` |
+
+- **캘린더**에서 날짜를 고르고 **이 날짜에 추가**를 누릅니다. 하루 종일을 해제하면 시작·종료 시간을 지정할 수 있습니다. 여러 날에 걸친 일정은 **장기 일정**에서도 확인할 수 있습니다.
+- 홈과 기록의 **메모**는 카테고리 필터 없이 표시하며, 각 행 왼쪽에 카테고리가 표시됩니다. **+** 버튼으로 메모를 추가하고 오른쪽 체크로 완료합니다. **설정 → 카테고리 관리**에서 카테고리를 추가·삭제할 수 있으며, 삭제한 카테고리의 메모는 미분류로 표시됩니다.
+- **할 일**에서 각 항목의 **아래에 추가**를 누르면 같은 날짜와 카테고리가 입력된 상태로 그 위치에 새 항목을 끼워 넣습니다. 할 일 탭에서는 카테고리별로 묶어 보며, 목록 위의 카테고리를 누르면 해당 할 일만 표시됩니다.
+- **현재 날씨**의 기본 지역은 광주이며, 직접 선택한 지역이 있으면 그 선택을 유지합니다. 날씨 상태를 표시하고 습도·온도는 큰 숫자로, 습도는 파란색으로 강조합니다. 앞으로 6시간 안에 비·눈·안개 등의 예보가 있으면 종류와 첫 예상 시각을 습도·온도처럼 큰 항목으로 보여주며, 해당 예보가 없으면 항목을 숨깁니다. **표시 항목** 셀렉트 박스에서 기본 정보, 미세먼지 추가, 초미세먼지 추가, 모두 보기 중 선택할 수 있고 선택은 브라우저에 저장됩니다. 대기질은 CAMS의 예상 농도입니다.
+- 날씨·대기질은 각각 독립적으로 조회하며, 로컬 서버는 응답을 최대 30초 기다립니다(브라우저는 전달 시간을 포함해 35초). 실패 시 5초·15초·1분·이후 5분 간격으로 자동 재시도하고, 제공자의 요청 제한 대기 시간을 지킵니다. 정상 조회는 15분마다 갱신합니다. 지역별 마지막 정상 응답을 저장하여 일시적인 장애에도 표시하고 기준 날짜·시각과 갱신 상태를 안내합니다. 기준 시각으로부터 6시간이 지난 정보는 표시하지 않습니다. `npm run test:weather`로 지연·재시도·캐시 처리를 검증합니다.
+- **교통 노선**은 공공 API 목록에서 버스·지하철 노선과 승하차 지점을 선택하고 별칭을 붙여 저장합니다. 버스는 지역·노선 번호로 검색하며 방향별 정류장을 선택하고, 지하철은 노선·역 이름으로 찾습니다. 지점 이름을 누르면 카카오맵 검색 결과가 열립니다. 실제 조회에는 TAGO 두 서비스의 활용 승인과 서버 인증키가 필요합니다. [교통 API 발급·연결 안내](transit/README.md)를 참고하세요. **작업 메모**에는 날짜별 기록을 남길 수 있습니다.
+
+플래너 항목은 현재 브라우저의 로컬 저장소에 보관됩니다. 필름의 JSON 백업은 아카이브 기록만 포함합니다.
+
+### 개인용 디스코드 메모 연동
+
+Supabase 모드에서는 서버 Secrets의 `DISCORD_WEBHOOK_URL`, `DISCORD_SYNC_FROM`을 사용합니다. 아래 `.env.discord.local` 설명은 Supabase를 사용하지 않는 로컬 모드용입니다.
+
+```dotenv
+DISCORD_WEBHOOK_URL="여기에 개인 채널의 웹후크 URL"
+DISCORD_SYNC_FROM=2026-11-18
+```
+
+URL을 넣은 뒤 `npm run dev`를 다시 실행하고 평소 쓰던 브라우저에서 작업 페이지를 열면 시작 날짜 이후의 메모가 자동으로 반영됩니다. 웹후크 URL을 비우고 서버를 다시 실행하면 연동이 중지됩니다. `.env.discord.local`은 Git에서 제외되며, URL은 웹 화면·브라우저 저장소·API 응답에 전달하지 않습니다. 이미 별도로 실행한 `npm run discord:server`가 있으면 그 서버도 재시작해야 env 변경이 반영됩니다.
+
+홈의 **메모**와 같은 데이터인 할 일 항목을 날짜별로 모아 `# 2026.11.18` 제목 아래 보냅니다. 캘린더 일정과 별도 기능인 작업 메모는 보내지 않습니다.
+
+- 미리 만든 미완료 메모: `1. [카테고리] 내용`
+- 당일 또는 나중에 추가한 미완료 메모: `- [카테고리] 내용`
+- 완료한 메모: `- ~~[카테고리] 내용~~`
+
+체크 해제 시 원래 목록 형식으로 돌아가며, 별도 결과 입력란은 없습니다. 작성일은 신규 메모부터 저장하고 기존 메모는 정렬 키에서 복원합니다. 알 수 없는 경우 `-` 목록으로 표시합니다. 수정·삭제·날짜 이동도 기존 디스코드 메시지에 반영하며, 긴 목록은 2,000자 이내로 나눕니다. 멘션 알림은 보내지 않습니다.
+
+날짜별 메시지 ID와 전송 상태는 Supabase 모드에서는 비공개 데이터베이스에, 로컬 모드에서는 Git에서 제외한 `discord/private/state.json`에 저장합니다. 웹후크 URL은 이 상태 파일에 저장하지 않습니다. 처음 메모를 보낸 브라우저에 연결을 고정하여, 다른 빈 브라우저가 기존 게시물을 삭제하지 않게 합니다. 설정한 시작 날짜 이전의 메시지는 변경하지 않습니다.
+
+로컬 모드에서는 이 컴퓨터의 localhost 작업 페이지와 연결 서버를 켜 둔 동안 자동 반영합니다. 연결이 끊기면 메모는 로컬에 남고 다음 연결 때 다시 반영합니다. Supabase 웹 연결은 위 설정을 따릅니다. 기존 Android 설치본은 이번 웹 연결 검증에 포함하지 않습니다. 연결 서버만 실행하려면 `npm run discord:server`, 모의 응답으로 검증하려면 `npm run test:discord`를 사용합니다. 포트는 기본 `4192`이며 `.env.discord.local`의 `DISCORD_PORT`, `DISCORD_ALLOWED_ORIGINS`로 변경할 수 있습니다.
+
+## Android 하이브리드 앱
+
+Android 빌드로 생성한 `public/downloads/sesasi.apk`를 휴대폰에 설치하면 **세사시** 앱에서 메인 필름, 사진·글 기록, 캘린더, 할 일, 교통 노선, 메모를 사용할 수 있습니다. 기존 앱과 같은 앱 식별자와 서명 키를 사용하므로 기존 앱 위에 업데이트할 수 있습니다.
+
+기존 Next.js 웹 화면 전체를 Android WebView에 포함합니다. 화면과 저장된 기록은 오프라인에서도 열 수 있으며, 날씨·대기질 조회에는 인터넷이 필요합니다. 카카오맵 등의 외부 링크는 휴대폰의 외부 앱으로 열립니다. 사진 첨부와 백업 복원은 Android 파일 선택기를, 백업 내보내기는 Android 저장 위치 선택기를 사용합니다. 휴대폰 뒤로 가기는 열린 대화상자를 닫거나 이전 화면으로 이동합니다.
+
+웹과 휴대폰 앱의 저장소는 각각 관리됩니다. 필름 기록은 JSON 백업·복원으로 옮길 수 있습니다. 캘린더·할 일·노선·메모는 해당 앱의 로컬 저장소에 보관됩니다.
+
+빌드에는 JDK 17, Android SDK Platform 35, Build Tools 35.0.0과 `rsync`, `zip`이 필요합니다. `JAVA_HOME`과 `ANDROID_HOME`을 지정한 뒤 실행합니다.
+
+```bash
+npm run build:android
+```
+
+웹 정적 빌드와 Android 코드를 묶은 로컬 서명 설치 파일이 `public/downloads/sesasi.apk`와 `out/downloads/sesasi.apk`에 생성됩니다. 웹 화면 변경도 새 앱 빌드에 포함됩니다. 업데이트에는 최초 빌드의 `android/build/local-debug.keystore`를 계속 사용하세요.
+
+Android 연결 코드는 `android/src/kr/sesasi/daybook/`, 웹의 백업 브리지는 `app/lib/native.ts`에 있습니다. `SESASI_ANDROID_DEBUG=1 npm run build:android`로 만든 개발용 설치본은 WebView 디버깅을 지원합니다.
+
+## 저장과 공개 포트폴리오
+
+기록과 업로드 사진은 현재 브라우저의 IndexedDB에 저장됩니다. JPG·PNG·WebP를 지원하며 긴 변을 최대 1,800px로 줄이며 업로드한 형식을 유지해 저장합니다. 투명 배경이 필요한 일러스트에는 PNG 또는 WebP를 사용하세요. 새로고침 후에도 유지되지만 사이트 데이터 삭제 또는 브라우저/기기 변경 시 자동 이전되지 않습니다. 백업 파일을 이용하세요.
+
+초기 7개 기록은 구현 예시이며 사용자 본인의 생애를 나타내지 않습니다. 예시 사진은 Unsplash 이미지를 `public/images/`에 저장한 것입니다. 실행 중 외부 사진 API는 사용하지 않습니다.
+
+방문자마다 저장소가 다르므로 작성한 기록이 다른 방문자에게 자동 공개되지는 않습니다. 공개 포트폴리오를 만들려면 `app/lib/archive.ts`의 `sampleStories`를 공개할 기록으로 교체하고 사진을 `public/images/`에 넣은 뒤 다시 빌드·배포합니다. 개인적인 글과 사진은 배포 전에 내용을 확인하세요.
+
+## 주요 파일
+
+메인 필름의 구멍·프레임·회전 눈금은 CSS와 SVG로 그립니다. 사용자가 첨부한 `public/images/book-paper.png`는 어두운 메인과 밝은 상세 화면에 낮은 대비의 종이 질감으로 사용합니다. 외부 이미지·영상 요청이나 새 의존성은 없습니다. 연출 참고: [MARIA-n PV의 1:30–1:50 구간](https://www.youtube.com/watch?v=XYhqqT2N7SM&t=90s). 영상 장면이나 음원은 포함하지 않습니다.
+
+이전 배경 자료: [Parchement Textures — VWolfdog / OpenGameArt](https://opengameart.org/content/parchement-textures), CC0 (`public/images/aged-paper.jpg`, 현재 미사용). 시각 참고: [Dordogne 공식 소개의 기록장](https://www.focus-entmt.com/en/games/dordogne).
+
+- `app/components/memory-dial.tsx`: 필름 다이얼, 휠·드래그·키보드 탐색
+- `app/components/archive.tsx`: 상세 화면과 전환, 작성·수정, 삭제, 백업 UI
+- `app/lib/archive.ts`: 기록 타입, 예시 데이터, IndexedDB, 이미지 처리, 백업 검증
+- `app/globals.css`: 반응형 필름·다이얼과 상세 아트 배치
+- `next.config.ts`: 정적 배포 설정
+
+검증: 정적 프로덕션 빌드와 TypeScript 검사, 필름 선택·상세 진입·복귀 흐름을 확인합니다. 저장 형식과 날짜 없는 기록의 정렬 방식은 기존 구현을 유지합니다.

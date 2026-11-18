@@ -3,13 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
+    "build:android": "bash android/build.sh",
+    "transit:server": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.transit.local transit/server.mjs",
+    "test:transit": "node --experimental-strip-types --test tests/transit.test.mjs",
+    "discord:server": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.discord.local discord/server.mjs",
+    "test:discord": "node --experimental-strip-types --test tests/discord.test.mjs",
+    "test:weather": "node --experimental-strip-types --test tests/weather.test.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:cloud": "node --experimental-strip-types --test tests/cloud.test.mjs",
+    "check:cloud": "deno check supabase/functions/weather/index.ts supabase/functions/transit/index.ts supabase/functions/discord-sync/index.ts",
+    "supabase:deploy": "supabase functions deploy weather transit discord-sync --use-api --yes"
   },
   "dependencies": {
-    "next": "16.4.3",
+    "@supabase/supabase-js": "^2.119.0",
+    "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
@@ -18,8 +28,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "deno": "^2.9.6",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
+    "supabase": "^3.2.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

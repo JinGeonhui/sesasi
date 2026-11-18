@@ -1,0 +1,21 @@
+project_id = "sesasi"
+
+[auth]
+site_url = "http://localhost:3000/planner/settings/"
+additional_redirect_urls = ["http://localhost:3000/planner/settings/", "http://127.0.0.1:3000/planner/settings/"]
+enable_signup = false
+
+[functions.weather]
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/weather/index.ts"
+
+[functions.transit]
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/transit/index.ts"
+
+[functions.discord-sync]
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/discord-sync/index.ts"

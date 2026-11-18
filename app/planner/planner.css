@@ -1,0 +1,294 @@
+.daybook {
+  /* Adapted from Artroom's light palette and compact component shapes. */
+  --ink: #1f2937;
+  --muted: #687385;
+  --soft: #f9fafb;
+  --canvas: #eef0f3;
+  --surface: #fff;
+  --line: #e5e7eb;
+  --blue: #307cff;
+  --action: #2465d8;
+  --accent-soft: #edf4ff;
+  --pressed: #1c53b8;
+  --radius: 6px;
+  --panel-radius: 10px;
+  --pad: clamp(20px, 4vw, 48px);
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 15px/1.6 Pretendard, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  letter-spacing: -.015em;
+  word-break: keep-all;
+}
+.daybook :is(h1,h2,p) { margin: 0; }
+.daybook :is(button,a,input,select,textarea,summary):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.db-bar, .db-main { max-width: 1180px; margin-inline: auto; padding-inline: var(--pad); }
+.daybook ::selection { background: var(--blue); color: white; }
+.daybook :is(button, a, input, select, textarea) { -webkit-tap-highlight-color: transparent; }
+.daybook :is(button, a, input, select, textarea) { transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease; }
+.db-bar { display: flex; align-items: center; gap: clamp(22px, 4vw, 58px); min-height: 88px; }
+.db-brand { font: 750 23px/1 Inter, Arial, sans-serif; letter-spacing: -.045em; color: var(--ink); padding: 8px 0; }
+.db-nav { display: flex; align-items: center; gap: 4px; }
+.db-nav a, .db-return, .db-text-action, .db-month-head button { min-height: 44px; border-radius: var(--radius); font-weight: 600; }
+.db-nav a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; color: var(--muted); font-size: 14px; }
+.db-nav a[aria-current] { background: var(--surface); color: var(--action); }
+.db-return { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 0 10px; color: var(--muted); font-size: 13px; }
+.db-main { padding-top: clamp(28px, 4vw, 48px); padding-bottom: 80px; min-height: calc(100dvh - 88px); background: var(--surface); border-radius: 12px 12px 0 0; }
+.db-heading, .db-section-head, .db-month-head, .db-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.db-heading { margin-bottom: 32px; }
+.db-heading h1 { font-size: clamp(30px, 3.5vw, 42px); font-weight: 740; letter-spacing: -.035em; line-height: 1.2; }
+.db-heading .db-date-heading { letter-spacing: 0; }
+.db-heading h1 span { color: #565f69; font-weight: 500; }
+.db-heading p { margin-top: 10px; color: var(--muted); font-size: 16px; }
+.db-primary { flex: none; padding: 0 18px; min-height: 44px; border-radius: var(--radius); background: var(--action); color: white; font-size: 14px; font-weight: 600; }
+.db-overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, .57fr); gap: clamp(28px, 6vw, 82px); align-items: start; }
+.db-agenda, .db-context { min-width: 0; display: grid; align-content: start; }
+.db-agenda { gap: 32px; }
+.db-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 6px; background: var(--soft); border-radius: var(--panel-radius); }
+.db-week button { display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 64px; border-radius: var(--radius); }
+.db-week span { font-size: 12px; font-weight: 550; color: var(--muted); }
+.db-week b { font-size: 21px; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.db-week button[aria-pressed=true] { color: white; background: var(--action); }
+.db-week button[aria-pressed=true] span { color: white; }
+.db-section-head h2, .db-month-head h2 { font-size: 20px; font-weight: 650; letter-spacing: -.025em; }
+.db-section-head { min-height: 44px; }
+.db-text-action { padding: 0 10px; color: var(--action); font-size: 13px; }
+.db-list-panel { min-width: 0; }
+.db-list-panel .db-empty { padding: 24px 16px; margin-top: 12px; border-radius: var(--radius); background: var(--soft); color: var(--muted); font-size: 14px; }
+.db-list { margin: 4px 0 0; padding: 0; list-style: none; }
+.db-list li { display: flex; align-items: center; gap: 13px; border-radius: var(--radius); }
+.db-list input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--blue); cursor: pointer; }
+.db-entry { flex: 1; min-width: 0; display: grid; gap: 4px; min-height: 48px; padding: 12px 0; text-align: left; overflow-wrap: anywhere; }
+.db-entry strong { font-size: 15px; font-weight: 550; line-height: 1.6; }
+.db-entry small, .db-entry p, .db-entry .done { color: var(--muted); }
+.db-entry p { font-size: 14px; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.db-entry .done { text-decoration: line-through; }
+.db-time { min-width: 45px; color: var(--blue); font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+.db-context { gap: 14px; }
+.db-weather { padding: 0 0 24px; }
+.db-weather .db-section-head { padding-top: 8px; }
+.db-weather .db-section-head h2 { font-size: 20px; }
+.db-weather-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; color: var(--muted); font-size: 13px; }
+.db-weather-foot small { display: block; padding-top: 3px; font-size: 11px; }
+.db-weather-foot a { margin-left: auto; padding-block: 8px; font-size: 11px; }
+.db-weather-foot button { color: var(--blue); min-height: 44px; }
+.db-shortcuts { display: grid; gap: 8px; }
+.db-feature-link { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); text-align: left; background: var(--surface); }
+.db-link-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; color: var(--blue); background: var(--accent-soft); border-radius: var(--radius); }
+.db-link-copy { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.db-link-copy strong { font-size: 15px; font-weight: 600; }
+.db-link-description { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.db-link-arrow { display: inline-flex; flex: none; color: var(--muted); }
+.db-calendar { background: var(--soft); border: 1px solid var(--line); border-radius: var(--panel-radius); padding: 24px; }
+.db-month-head { margin-bottom: 18px; }
+.db-month-head > div { display: flex; gap: 3px; }
+.db-month-head button { display: inline-grid; place-items: center; min-width: 44px; color: var(--action); font-size: 13px; }
+.db-month-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 3px; }
+.db-weekday { padding-bottom: 8px; color: var(--muted); text-align: center; font-size: 13px; }
+.db-month-grid button { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; min-height: 62px; padding: 4px 2px; border-radius: var(--radius); }
+.db-month-grid b { display: grid; place-items: center; width: 32px; height: 32px; font-size: 16px; font-weight: 550; border-radius: 50%; }
+.db-month-grid .outside { color: #69717c; }
+.db-month-grid .is-today { color: var(--blue); font-weight: 750; }
+.db-month-grid button.selected b { background: var(--action); color: white; }
+.db-month-grid small { max-width: 100%; padding: 0 4px; color: #225cb4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.db-segments { display: flex; width: fit-content; max-width: 100%; flex-wrap: wrap; gap: 4px; margin: 0 0 20px; padding: 4px; background: var(--canvas); border-radius: 8px; }
+.db-calendar + .db-segments { margin-top: 26px; }
+.db-segments button { min-height: 40px; padding: 0 16px; border-radius: var(--radius); color: var(--muted); font-size: 13px; }
+.db-segments button[aria-pressed=true] { background: var(--surface); color: var(--action); font-weight: 650; box-shadow: 0 1px 3px #1f29370a; }
+.db-dialog { width: min(440px, calc(100% - 32px)); max-height: 90dvh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; padding: 28px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px #1f293724; }
+.db-dialog::backdrop { background: rgb(13 17 23 / 40%); }
+.db-dialog header { margin-bottom: 19px; }
+.db-dialog h2 { font-size: 22px; letter-spacing: -.025em; }
+.db-dialog header button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius); color: var(--muted); }
+.db-dialog form, .db-dialog label { display: grid; gap: 18px; }
+.db-dialog label { gap: 7px; min-width: 0; font-size: 14px; font-weight: 600; }
+.db-dialog label small { color: var(--muted); font-weight: 400; }
+.db-dialog :is(input, select, textarea) { min-width: 0; width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: var(--surface); font-size: 16px; font-weight: 400; }
+.daybook input::placeholder, .daybook textarea::placeholder { color: #828c9b; }
+.db-dialog textarea { resize: vertical; }
+.db-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(135px,100%), 1fr)); gap: 10px; }
+.db-dialog footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 6px; }
+.db-dialog footer button { min-height: 44px; padding-inline: 17px; border-radius: var(--radius); }
+.db-dialog footer .db-primary { min-width: 90px; }
+.db-dialog .db-delete, .db-dialog footer span { margin-right: auto; }
+.db-delete, .db-danger, .db-error { color: #a33232; }
+.db-error { padding: 12px 0; }
+@media (hover: hover) {
+  .db-nav a:not([aria-current]):hover, .db-return:hover, .db-feature-link:hover,
+  .db-list li:hover, .db-month-head button:hover, .db-text-action:hover, .db-dialog header button:hover { background: var(--soft); }
+  .db-primary:hover { background: var(--pressed); }
+  .db-week button:not([aria-pressed=true]):hover, .db-month-grid button:hover { background: #e8ecf1; }
+}
+@media (max-width: 780px) {
+  .daybook { background: var(--surface); }
+  .db-bar { min-height: 60px; justify-content: space-between; }
+  .db-brand { font-size: 22px; }
+  .db-return { font-size: 13px; padding-right: 0; }
+  .db-nav { position: fixed; z-index: 5; inset: auto 0 0; justify-content: center; gap: 2px; padding: 8px var(--pad) max(8px, env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line); }
+  .db-nav a { flex: 1; flex-direction: column; gap: 4px; min-height: 48px; max-width: 160px; min-width: 0; padding: 2px; font-size: 11px; line-height: 1.3; }
+  .db-nav a[aria-current] { background: transparent; color: var(--action); }
+  .db-nav a[aria-current] svg { fill: var(--accent-soft); stroke-width: 2; }
+  .db-main { padding-top: 22px; padding-bottom: calc(96px + env(safe-area-inset-bottom)); border-radius: 0; min-height: calc(100dvh - 60px); }
+  .db-overview { grid-template-columns: 1fr; gap: 26px; }
+  .db-agenda { gap: 20px; }
+  .db-context { gap: 8px; }
+}
+@media (max-width: 480px) {
+  .db-heading { align-items: center; margin-bottom: 22px; }
+  .db-heading h1 { font-size: clamp(24px, 6.7vw, 32px); }
+  .db-heading h1 span { font-size: .78em; }
+  .db-heading p { margin-top: 6px; font-size: 14px; }
+  .db-primary { min-height: 44px; padding-inline: 13px; font-size: 14px; }
+  .db-week { gap: 2px; padding: 6px; }
+  .db-week button { min-height: 59px; }
+  .db-week b { font-size: 18px; }
+  .db-section-head h2, .db-month-head h2 { font-size: 20px; }
+  .db-calendar { padding: 12px 5px; }
+  .db-month-head { padding-left: 8px; gap: 4px; margin-bottom: 10px; }
+  .db-month-grid { gap: 0; }
+  .db-month-grid button { min-height: 50px; }
+  .db-dialog { width: 100%; max-width: 100%; max-height: 88dvh; margin: auto 0 0; padding: 20px 20px max(20px, env(safe-area-inset-bottom)); border-radius: 16px 16px 0 0; }
+  .db-dialog .db-primary { flex: 1; }
+}
+
+.db-dialog label.db-all-day { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.db-dialog .db-all-day input { width: 20px; min-height: 20px; height: 20px; padding: 0; margin: 0; accent-color: var(--blue); }
+.db-field-hint, .db-agenda-label { font-size: 14px; color: var(--muted); }
+.db-agenda-label { margin: 16px 0 2px; font-weight: 600; }
+.db-list-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 18px; }
+.db-list-tools .db-segments { margin: 0; }
+.db-list-tools select, .db-city-select { min-height: 44px; min-width: 0; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-size: 14px; cursor: pointer; }
+.db-todo-group { margin-top: 24px; }
+.db-todo-group h2 { font-size: 19px; overflow-wrap: anywhere; }
+.db-todos li { padding-inline: 10px; margin: 3px 0; }
+.db-todos li.db-memo-row { display: grid; grid-template-columns: fit-content(80px) minmax(0, 1fr) 44px; gap: 8px; padding-inline: 0; }
+.db-memo-row > .db-category-label { justify-self: start; }
+.db-discord-memo-status { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; color: var(--muted); font-size: 12px; }
+.db-memo-complete { display: grid; place-items: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.db-memo-add { display: grid; place-items: center; flex: none; box-sizing: border-box; width: 44px; height: 44px; padding: 6px; border-radius: calc(var(--radius) + 6px); background-color: var(--accent-soft); background-clip: content-box; color: var(--action); }
+.db-memo-add svg { width: 20px; height: 20px; }
+@media (hover: hover) { .db-memo-add:hover { background-color: #dce9ff; } }
+.db-memo-add:active { background-color: #cbdfff; }
+.db-todos li.db-inserted { background: var(--accent-soft); }
+.db-todos .db-inserted small { color: var(--muted); }
+.db-insert-action { padding: 7px; min-height: 44px; flex: none; font-size: 12px; color: var(--muted); }
+.db-insert-action:hover { color: var(--blue); }
+.db-route-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,290px),1fr)); max-width: 900px; gap: 14px; }
+.db-route-card { padding: 16px 22px 22px; border: 1px solid var(--line); border-radius: var(--panel-radius); background: var(--surface); overflow-wrap: anywhere; }
+.db-route-card h2 { font-size: 25px; }
+.db-transit-dialog { width: min(520px, calc(100% - 32px)); }
+.db-transit-dialog .db-segments { margin-bottom: 0; }
+.db-transit-dialog :is(button, select):disabled { opacity: .45; cursor: not-allowed; }
+.db-transit-search { display: flex; align-items: stretch; gap: 8px; }
+.db-transit-search input { flex: 1; }
+.db-transit-results { display: grid; grid-auto-rows: max-content; gap: 8px; max-height: 260px; overflow: auto; padding: 4px; }
+.db-transit-result { display: grid; gap: 4px; min-height: 64px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); text-align: left; }
+.db-transit-result strong { font-size: 16px; color: var(--action); }
+.db-transit-result span { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.db-transit-result:hover { background: var(--accent-soft); }
+.db-transit-result[aria-pressed="true"] { border-color: var(--action); background: var(--accent-soft); }
+.db-station-search { display: grid; gap: 8px; }
+.db-connection { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.db-connection .db-transit-result { border-radius: 0; }
+.db-arrivals { padding: 12px 0; display: grid; gap: 8px; }
+.db-connection .db-arrivals { padding: 12px; }
+.db-arrivals p, .db-arrivals small { margin: 0; color: var(--muted); font-size: 12px; }
+.db-arrival-times { display: flex; flex-wrap: wrap; gap: 24px; }
+.db-arrival-times > div { display: grid; gap: 4px; }
+.db-arrival-times strong { color: var(--action); font-size: 24px; }
+.db-arrival-times span { color: var(--muted); font-size: 12px; }
+.db-transit-selected { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; background: var(--accent-soft); border-radius: var(--radius); }
+.db-transit-selected > div { min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.db-transit-selected small { color: var(--muted); font-size: 12px; }
+.db-transit-selected button { flex: none; }
+.db-transit-stops { display: grid; gap: 16px; }
+.db-transit-summary { padding: 12px; background: var(--soft); border-radius: var(--radius); color: var(--action); font-size: 14px; overflow-wrap: anywhere; }
+.db-transit-error { padding: 12px; background: var(--soft); border-radius: var(--radius); font-size: 14px; }
+.db-transit-error .db-text-action { padding-left: 0; }
+.db-transit-source { color: var(--muted); font-size: 11px; }
+.db-transit-source a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 480px) { .db-transit-dialog { width: 100%; } }
+.db-route-card .db-route-alias, .db-route-hint { color: var(--muted); font-size: 13px; }
+.daybook .db-route-hint { margin-bottom: 12px; }
+.db-mode { padding: 3px 9px; border-radius: var(--radius); font-size: 12px; font-weight: 600; }
+.db-mode.bus { color: #166753; background: #e0f1e9; }
+.db-mode.rail { color: #265aa8; background: #e1ebfc; }
+.db-stops { margin: 17px 0 10px; }
+.db-stops > div { display: flex; gap: 12px; align-items: baseline; }
+.db-stops dt { flex: none; font-size: 13px; color: var(--muted); }
+.db-stops dd { margin: 0; min-width: 0; }
+.db-stops a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+.db-stops a:hover { color: var(--blue); }
+.db-range, .db-sources { font-size: 13px; color: var(--muted); }
+.db-weather-condition { display: grid; margin-top: 24px; }
+.db-weather-condition > strong { font-size: clamp(28px, 3vw, 36px); font-weight: 800; letter-spacing: -.06em; line-height: 1.2; overflow-wrap: anywhere; }
+.db-weather-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 16px; margin: 18px 0 24px; }
+.db-weather-metrics > div { min-width: 0; }
+.db-weather-metrics dt { margin-bottom: 6px; font-size: 14px; color: var(--muted); }
+.db-weather-metrics dd { margin: 0; }
+.db-weather-metrics strong { font-size: clamp(44px, 5vw, 60px); font-weight: 800; letter-spacing: -.065em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.db-weather-unit { margin-left: 3px; font-size: 24px; font-weight: 700; }
+.db-weather-dust-unit { display: block; margin: 4px 0 0; color: var(--muted); font-size: 12px; font-weight: 400; }
+.db-weather-metrics small { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; }
+.db-weather-metrics .db-weather-humidity :is(dt, strong, .db-weather-unit) { color: var(--action); }
+.db-weather-options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.db-weather-options select { max-width: 100%; min-width: 0; min-height: 44px; padding: 0 28px 0 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-size: 14px; cursor: pointer; }
+.db-weather .db-sources { margin-top: 4px; font-size: 11px; }
+.db-history { max-width: 720px; }
+.db-history-picker { display: grid; gap: 16px; }
+.db-history-picker > a { width: fit-content; display: inline-flex; align-items: center; padding: 0; }
+.db-history-picker > p { color: var(--muted); font-size: 14px; }
+.db-history-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.db-history-controls label { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.db-history-controls input { min-height: 44px; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 10px; background: var(--surface); }
+.db-settings-links { max-width: 720px; }
+.db-settings-links .db-feature-link { padding: 16px; }
+@media (max-width: 780px) {
+  .db-overview { display: flex; flex-direction: column; align-items: stretch; gap: 20px; }
+  .db-overview .db-agenda, .db-overview .db-context { display: contents; }
+  .db-overview .db-weather { order: -1; }
+}
+
+.db-category-field { min-width: 0; padding: 0; margin: 0; border: 0; }
+.db-category-field legend { margin-bottom: 8px; padding: 0; font-size: 14px; font-weight: 600; }
+.db-category-filter { margin: 8px 0 18px; }
+.db-category-options, .db-todo-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.db-category-options button { max-width: 100%; min-height: 44px; padding: 5px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+.db-category-options button[aria-pressed=true] { color: white; border-color: var(--action); background: var(--action); font-weight: 600; }
+.db-category-field > label { margin-top: 12px; }
+.db-category-label { max-width: 100%; padding: 3px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+
+.db-category-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.db-dialog .db-category-create { display: flex; align-items: flex-end; gap: 8px; }
+.db-category-create label { flex: 1; }
+.db-managed-categories { margin: 16px 0 0; padding: 0; list-style: none; }
+.db-managed-categories li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-block: 8px; min-height: 50px; }
+.db-managed-categories strong { overflow-wrap: anywhere; }
+.db-managed-categories small { margin-left: 8px; color: var(--muted); }
+.db-category-confirm { flex: 0 0 100%; background: var(--soft); padding: 12px 14px; border-radius: var(--radius); font-size: 14px; }
+.db-category-confirm button { min-height: 40px; padding-right: 16px; font-weight: 600; }
+.db-dialog.db-category-settings { width: 100%; max-width: 720px; max-height: none; margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 0; box-shadow: none; }
+.db-category-back { display: inline-flex; align-items: center; margin-bottom: 20px; padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .daybook :is(button, a, input, select, textarea) { transition: none; }
+}
+
+.db-weather-status { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.db-weather-status p { margin: 8px 0 0; }
+.db-weather-foot button:disabled { opacity: .5; cursor: wait; }
+
+.db-cloud-notice { padding: 12px 24px; background: #edf3ff; color: #244a85; font-size: 14px; }
+.db-cloud-notice p { margin: 0; }
+.db-cloud-notice a { text-decoration: underline; }
+.db-cloud-account { padding: 24px; margin-bottom: 24px; background: var(--surface, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 6px; }
+.db-cloud-account h2 { font-size: 18px; margin: 0 0 16px; }
+.db-cloud-account p { font-size: 14px; line-height: 1.6; }
+.db-cloud-account form { display: grid; gap: 14px; max-width: 420px; }
+.db-cloud-account label { display: grid; gap: 6px; font-size: 14px; }
+.db-cloud-account input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; }
+.db-cloud-account button { min-height: 44px; border-radius: 6px; padding: 8px 16px; color: #fff; background: #2563eb; }
+.db-cloud-account button:disabled { opacity: .5; }
