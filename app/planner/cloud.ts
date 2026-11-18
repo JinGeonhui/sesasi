@@ -8,7 +8,7 @@ export class CloudError extends Error {
   constructor(code: string) { super(cloudMessage(code)); this.code = code; }
 }
 export function cloudMessage(code: string) {
-  if (code === 'LOGIN_REQUIRED') return '설정에서 개인 계정으로 로그인해 주세요.';
+  if (code === 'LOGIN_REQUIRED') return '개인 계정으로 로그인해 주세요.';
   if (code === 'OWNER_REQUIRED') return '등록된 개인 계정으로 로그인해 주세요.';
   return '서버 연결을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.';
 }

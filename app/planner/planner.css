@@ -281,14 +281,14 @@
 .db-weather-status p { margin: 8px 0 0; }
 .db-weather-foot button:disabled { opacity: .5; cursor: wait; }
 
-.db-cloud-notice { min-height: 0; padding: 12px 24px; background: #edf3ff; color: #244a85; font-size: 14px; }
-.db-cloud-notice p { margin: 0; }
-.db-cloud-notice a { text-decoration: underline; }
+.db-auth-loading { display: grid; place-items: center; color: #64748b; }
+.db-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.db-account-actions a { color: #2563eb; text-decoration: underline; }
 .db-cloud-account { padding: 24px; margin-bottom: 24px; background: var(--surface, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 6px; }
 .db-cloud-account h2 { font-size: 18px; margin: 0 0 16px; }
 .db-cloud-account p { font-size: 14px; line-height: 1.6; }
 .db-cloud-account form { display: grid; gap: 14px; max-width: 420px; }
 .db-cloud-account label { display: grid; gap: 6px; font-size: 14px; }
-.db-cloud-account input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; }
+.db-cloud-account input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 16px; }
 .db-cloud-account button { min-height: 44px; border-radius: 6px; padding: 8px 16px; color: #fff; background: #2563eb; }
 .db-cloud-account button:disabled { opacity: .5; }
