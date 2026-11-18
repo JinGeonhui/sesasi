@@ -281,7 +281,7 @@
 .db-weather-status p { margin: 8px 0 0; }
 .db-weather-foot button:disabled { opacity: .5; cursor: wait; }
 
-.db-cloud-notice { padding: 12px 24px; background: #edf3ff; color: #244a85; font-size: 14px; }
+.db-cloud-notice { min-height: 0; padding: 12px 24px; background: #edf3ff; color: #244a85; font-size: 14px; }
 .db-cloud-notice p { margin: 0; }
 .db-cloud-notice a { text-decoration: underline; }
 .db-cloud-account { padding: 24px; margin-bottom: 24px; background: var(--surface, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 6px; }
