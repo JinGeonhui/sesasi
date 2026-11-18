@@ -6,6 +6,7 @@ additional_redirect_urls = [
   "http://localhost:3000/planner/settings/",
   "http://127.0.0.1:3000/planner/settings/",
   "https://sesasi-six.vercel.app/planner/settings/",
+  "https://sesasi-six.vercel.app/planner/settings/password/",
   "https://sesasi-jingeonhuis-projects.vercel.app/",
   "https://sesasi-jingeonhuis-projects.vercel.app/**",
   "https://sesasi-*-jingeonhuis-projects.vercel.app",
