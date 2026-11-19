@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { dateKey, localDate, shift, kindNames, newTodoOrder, todoOrder, todoCategory, uncategorized, type Todo, type Entry, type Kind } from "./data";
 import { Icon } from "./icons";
 import RouteEditor from "./route-editor";
-import { memoCreatedOn } from "./discord-format";
+import { memoCreatedOn, memoDay } from "./discord-format";
 
 type Props = {
   kind: Kind;
@@ -80,7 +80,7 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
         category: name,
         order: todo ? todoOrder(todo) : newTodoOrder(base.id, after),
         inserted: todo?.inserted ?? Boolean(after),
-        createdOn: todo ? memoCreatedOn(todo) : dateKey(new Date()),
+        createdOn: todo ? memoCreatedOn(todo) : memoDay(),
         });
         break;
       }

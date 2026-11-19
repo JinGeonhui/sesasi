@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { discordLines, discordMessages, memoCreatedOn } from "../app/planner/discord-format.ts";
+import { discordLines, discordMessages, memoCreatedOn, memoDay, memoRows } from "../app/planner/discord-format.ts";
 import { createDiscordService, validateSnapshot, webhookURL } from "../discord/service.mjs";
 import { createDiscordServer } from "../discord/server.mjs";
 
@@ -12,6 +12,22 @@ const day = "2026-11-18", sourceId = "browser-test-source-12345";
 const webhook = `https://discord.com/api/webhooks/123456789012345678/${"x".repeat(68)}`;
 const memo = (values = {}) => ({ id: "one", kind: "todo", date: day, title: "오후 4시 10분 장내 기능 시험", category: "면허", done: false, order: "1", createdOn: "2026-11-17", ...values });
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
+
+test("앱과 디스코드가 미리 작성·당일 추가·완료에 같은 목록 표시를 쓴다", () => {
+  const todos = [memo({ id: 'first', order: '1' }), memo({ id: 'second', order: '2' }),
+    memo({ id: 'extra', order: '3', createdOn: day }), memo({ id: 'done', order: '4', done: true })];
+  assert.deepEqual(memoRows(todos).map(row => row.marker), ['1.', '2.', '-', '-']);
+  assert.deepEqual(discordLines(day, todos), ['1. [면허] 오후 4시 10분 장내 기능 시험', '2. [면허] 오후 4시 10분 장내 기능 시험',
+    '- [면허] 오후 4시 10분 장내 기능 시험', '- ~~[면허] 오후 4시 10분 장내 기능 시험~~']);
+  const completed = todos.map(todo => todo.id === 'first' ? { ...todo, done: true } : todo);
+  assert.deepEqual(memoRows(completed).map(row => row.marker), ['-', '1.', '-', '-']);
+  assert.deepEqual(memoRows(completed.map(todo => todo.id === 'first' ? { ...todo, done: false } : todo)).map(row => row.marker), ['1.', '2.', '-', '-']);
+  assert.deepEqual(memoRows([...todos, memo({ id: 'tomorrow', date: '2026-11-19' })]).map(row => row.marker), ['1.', '2.', '-', '-', '1.']);
+});
+test("당일 추가 여부는 기기 시간대가 아닌 한국 날짜를 기준으로 저장한다", () => {
+  assert.equal(memoDay(new Date('2026-11-18T14:59:59Z')), '2026-11-18');
+  assert.equal(memoDay(new Date('2026-11-18T15:00:00Z')), '2026-11-19');
+});
 
 test("미리 쓴 메모만 번호를 붙이고 당일 메모는 -로 표시한다", () => {
   assert.deepEqual(discordLines(day, [memo(), memo({ id: "two", order: "2", title: "82뽑 픽뚫 블레이드", category: "게임", createdOn: day }),

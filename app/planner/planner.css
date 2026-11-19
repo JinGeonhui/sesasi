@@ -164,7 +164,8 @@
 .db-todo-group { margin-top: 24px; }
 .db-todo-group h2 { font-size: 19px; overflow-wrap: anywhere; }
 .db-todos li { padding-inline: 10px; margin: 3px 0; }
-.db-todos li.db-memo-row { display: grid; grid-template-columns: fit-content(80px) minmax(0, 1fr) 44px; gap: 8px; padding-inline: 0; }
+.db-todos li.db-memo-row { display: grid; grid-template-columns: max-content fit-content(80px) minmax(0, 1fr) 44px; gap: 8px; padding-inline: 0; }
+.db-memo-marker { min-width: 2ch; color: var(--muted); font-variant-numeric: tabular-nums; }
 .db-memo-row > .db-category-label { justify-self: start; }
 .db-discord-memo-status { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; color: var(--muted); font-size: 12px; }
 .db-memo-complete { display: grid; place-items: center; min-width: 44px; min-height: 44px; cursor: pointer; }

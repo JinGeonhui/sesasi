@@ -1,27 +1,30 @@
 import { useState } from "react";
 import { ArrivalInfo } from "./transit-arrivals";
 import { eventHours, todoCategory, type CalendarEvent, type Todo, type TransitRoute } from "./data";
+import { memoRows } from "./discord-format";
 
 type TodoActions = { edit: (todo: Todo) => void; insert: (todo: Todo) => void; toggle: (todo: Todo) => void };
 export function TodoList({ items, compact, itemName = "할 일", edit, insert, toggle }: TodoActions & { items: Todo[]; compact?: boolean; itemName?: string }) {
   if (!items.length) return <p className="db-empty">표시할 {itemName === "메모" ? "메모가" : "할 일이"} 없어요.</p>;
-  if (itemName === "메모") return <ul className="db-list db-todos">{items.map(todo =>
+  const rows = memoRows(items);
+  if (itemName === "메모") return <ul className="db-list db-todos">{rows.map(({ todo, marker }) =>
     <li key={todo.id} className="db-memo-row">
-      <span className="db-category-label">{todoCategory(todo)}</span>
+      <span className="db-memo-marker">{marker}</span>
+      <span className="db-category-label">{todo.done ? <s>[{todoCategory(todo)}]</s> : <>[{todoCategory(todo)}]</>}</span>
       <button className="db-entry" onClick={() => edit(todo)}>
-        <strong className={todo.done ? "done" : ""}>{todo.title}</strong>
+        <strong className={todo.done ? "done" : ""}>{todo.done ? <s>{todo.title}</s> : todo.title}</strong>
       </button>
       <label className="db-memo-complete">
         <input type="checkbox" checked={todo.done} aria-label={`${todo.title} 완료`} onChange={() => toggle(todo)}/>
       </label>
     </li>
   )}</ul>;
-  return <ul className="db-list db-todos">{items.map(todo =>
+  return <ul className="db-list db-todos">{rows.map(({ todo, marker }) =>
     <li key={todo.id} className={todo.inserted ? "db-inserted" : undefined}>
       <input type="checkbox" checked={todo.done} aria-label={`${todo.title} 완료`} onChange={() => toggle(todo)}/>
       <button className="db-entry" onClick={() => edit(todo)}>
-        <strong className={todo.done ? "done" : ""}>{todo.title}</strong>
-        <span className="db-todo-meta"><span className="db-category-label">{todoCategory(todo)}</span>
+        <strong><span className="db-memo-marker">{marker} </span><span className={todo.done ? "done" : ""}>{todo.done ? <s>{todo.title}</s> : todo.title}</span></strong>
+        <span className="db-todo-meta"><span className="db-category-label">{todo.done ? <s>[{todoCategory(todo)}]</s> : <>[{todoCategory(todo)}]</>}</span>
           {(!compact || todo.inserted) && <small>{[!compact && todo.date, todo.inserted && "끼워 넣은 할 일"].filter(Boolean).join(" · ")}</small>}
         </span>
       </button>

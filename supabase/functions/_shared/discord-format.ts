@@ -5,6 +5,10 @@ function compareTodos(a: Todo, b: Todo) {
   return a.date.localeCompare(b.date) || (left < right ? -1 : left > right ? 1 : 0);
 }
 
+export function memoDay(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
 export function memoCreatedOn(todo: Todo) {
   if (todo.createdOn !== undefined) return todo.createdOn;
   // Older rows already carry their creation time in their ordering key.
@@ -12,7 +16,23 @@ export function memoCreatedOn(todo: Todo) {
   const match = part.match(todo.order?.includes("/") ? /^(\d{13})-/ : /^1-(\d{13})-/);
   if (!match) return "";
   const stamp = todo.order?.includes("/") ? 9999999999999 - Number(match[1]) : Number(match[1]);
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(stamp));
+  return memoDay(new Date(stamp));
+}
+
+// Use the same markers in the app and Discord. The creation date, rather than
+// the day the list is viewed, determines whether a memo was planned in advance.
+export function memoRows<T extends Todo>(todos: T[]) {
+  const numbers = new Map<string, number>();
+  return [...todos].sort(compareTodos).map(todo => {
+    const created = memoCreatedOn(todo);
+    let marker = "-";
+    if (!todo.done && created && created < todo.date) {
+      const number = (numbers.get(todo.date) ?? 0) + 1;
+      numbers.set(todo.date, number);
+      marker = `${number}.`;
+    }
+    return { todo, marker };
+  });
 }
 
 function plain(value: string) {
@@ -20,12 +40,10 @@ function plain(value: string) {
 }
 
 export function discordLines(day: string, todos: Todo[]) {
-  let number = 0;
-  return todos.filter(todo => todo.date === day).sort(compareTodos).map(todo => {
+  return memoRows(todos.filter(todo => todo.date === day)).map(({ todo, marker }) => {
     const text = `[${plain(todoCategory(todo))}] ${plain(todo.title)}`;
     if (todo.done) return `- ~~${text}~~`;
-    const created = memoCreatedOn(todo);
-    return `${created && created < day ? `${++number}.` : "-"} ${text}`;
+    return `${marker} ${text}`;
   });
 }
 
