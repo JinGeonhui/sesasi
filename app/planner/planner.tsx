@@ -13,6 +13,7 @@ import PlannerNavigation from "./navigation";
 import FeatureLink from "./feature-link";
 import { Icon } from "./icons";
 import { DiscordMemoStatus } from "./discord-sync";
+import DeleteMemoDialog from "./delete-memo-dialog";
 
 type Tab = "overview" | "history" | "categories" | Kind;
 const tabs: Record<Tab, string> = { overview: "홈", event: "캘린더", todo: "할 일", route: "교통 노선", note: "작업 메모", history: "기록", categories: "카테고리 관리" };
@@ -39,7 +40,7 @@ function WeekPicker({ day, today, onSelect }: { day: string; today: string; onSe
 export default function Planner({ tab }: { tab: Tab }) {
   const [today, setToday] = useState("");
   const [selectedDay, setDay] = useState("");
-  const day = tab === "overview" ? today : selectedDay;
+  const day = selectedDay || today;
   const [snapshot, setSnapshot] = useState<PlannerSnapshot | null>(null);
   const entries = snapshot?.entries ?? [];
   const catalog = snapshot?.catalog ?? new Map<string, string>();
@@ -48,6 +49,7 @@ export default function Planner({ tab }: { tab: Tab }) {
   const loadSequence = useRef(0);
   const [editor, updateEditor] = useState<{kind: Kind; entry?: Entry; after?: Todo} | null>(null);
   const editorSnapshot = useRef<PlannerSnapshot | null>(null);
+  const [deleting, setDeleting] = useState<{ todo: Todo; snapshot: PlannerSnapshot } | null>(null);
   const setEditor = (value: typeof editor) => { if (value) editorSnapshot.current = snapshot; updateEditor(value); };
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -62,7 +64,7 @@ export default function Planner({ tab }: { tab: Tab }) {
     const updateDay = () => setToday(dateKey(new Date()));
     let alive = true;
     const sequenceRef = loadSequence;
-    queueMicrotask(() => { if (alive) { updateDay(); setDay(dateKey(new Date())); } });
+    queueMicrotask(() => { if (alive) updateDay(); });
     const load = () => { if (!savingRef.current) void reload().catch(err => setError(err.message)); };
     const visible = () => { if (document.visibilityState === "visible") load(); };
     load();
@@ -98,7 +100,8 @@ export default function Planner({ tab }: { tab: Tab }) {
   const longEvents = events.filter(e => e.end > e.date);
   const addKind = tab === "history" || tab === "overview" || tab === "categories" ? null : tab;
   const edit = (entry: Entry) => setEditor({ kind: entry.kind, entry });
-  const todoActions = { edit, toggle, insert: (after: Todo) => setEditor({ kind: "todo", after }) };
+  const todoActions = { edit, toggle, insert: (after: Todo) => setEditor({ kind: "todo", after }),
+    remove: (todo: Todo) => { if (snapshot && !savingRef.current) setDeleting({ todo, snapshot }); } };
   const categories = [...catalog.keys()].sort((a,b) => a.localeCompare(b, "ko")).concat(uncategorized);
 
   const selectedCategory = tab === "todo" && categoryFilter && categories.includes(categoryFilter) ? categoryFilter : null;
@@ -112,7 +115,15 @@ export default function Planner({ tab }: { tab: Tab }) {
     <PlannerNavigation active={history || tab === "categories" ? "settings" : "home"} />
     <main className="db-main">
       <header className="db-heading">
-        <h1 className={overview ? "db-date-heading" : undefined}>{heading}</h1>
+        <div className="db-heading-content">
+          <h1 className={overview ? "db-date-heading" : undefined}>{heading}</h1>
+          {overview && day && <div className="db-home-date-picker" role="group" aria-label="홈 메모 날짜 선택">
+            <button type="button" aria-label="이전 날짜" onClick={() => setDay(dateKey(shift(localDate(day), -1)))}><Icon name="prev"/></button>
+            <input type="date" aria-label="메모 날짜" value={day} onChange={e => { if (e.target.value) setDay(e.target.value); }}/>
+            <button type="button" aria-label="다음 날짜" onClick={() => setDay(dateKey(shift(localDate(day), 1)))}><Icon name="next"/></button>
+            <button type="button" className="db-text-action" onClick={() => setDay("")} disabled={!selectedDay}>오늘</button>
+          </div>}
+        </div>
         {addKind && <button className="db-primary" disabled={!day || !snapshot || saving} onClick={() => setEditor({ kind: addKind })}>{kindNames[addKind]} 추가</button>}
       </header>
       {error && <div className="db-error" role="alert">{error} <button onClick={() => void reload().catch(err => setError(err.message))}>다시 불러오기</button></div>}
@@ -157,6 +168,10 @@ export default function Planner({ tab }: { tab: Tab }) {
         )}</ul> : <p className="db-empty">첫 작업 메모를 남겨 보세요.</p>}</section>}
       </>}
     </main>
+    {deleting && <DeleteMemoDialog todo={deleting.todo} onClose={() => setDeleting(null)} onDelete={async () => {
+      await mutate(() => saveEntry(deleting.todo, true, false, deleting.snapshot));
+      setDeleting(null);
+    }}/>}
     {editor && <EntryEditor kind={editor.kind} kindLabel={(overview || history) && editor.kind === "todo" ? "메모" : undefined} longTerm={tab === "event" && eventFilter === "장기 일정"} day={editor.after?.date ?? day} after={editor.after} categories={categories} selectedCategory={selectedCategory} routeMode={routeMode === "지하철" ? "지하철" : "버스"} entry={editor.entry} onClose={() => setEditor(null)} onChange={async (entry, remove, customCategory) => {
       await mutate(current => saveEntry(entry, remove ?? false, customCategory ?? false, editorSnapshot.current ?? current));
       if (!remove && entry.kind === "todo" && selectedCategory) setCategoryFilter(todoCategory(entry));

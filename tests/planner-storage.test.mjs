@@ -80,3 +80,20 @@ test('corrupt migration is retained and never presented as an empty successful l
   await assert.rejects(loadPlanner());
   assert.equal(local['sesasi.planner.v1.bad'], 'broken json');
 });
+
+test('deleting a selected date memo preserves other dates and failed deletion keeps the item', async () => {
+  fixture();
+  let snapshot = await loadPlanner();
+  const tomorrow = { ...memo, id: 'tomorrow', date: '2026-11-20', createdOn: '2026-11-19' };
+  await saveEntry(memo, false, false, snapshot);
+  await saveEntry(tomorrow, false, false, await loadPlanner());
+  snapshot = await loadPlanner();
+  fail = true;
+  await assert.rejects(saveEntry(tomorrow, true, false, snapshot), /서버/);
+  fail = false;
+  assert.deepEqual((await loadPlanner()).entries.map(item => item.id).sort(), ['memo1', 'tomorrow']);
+  await saveEntry(tomorrow, true, false, snapshot);
+  const reopened = await loadPlanner();
+  assert.deepEqual(reopened.entries.map(item => [item.id, item.date]), [['memo1', '2026-11-19']]);
+  assert.ok(events.includes('sesasi-planner-change'));
+});

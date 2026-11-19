@@ -41,6 +41,11 @@
 .db-heading { margin-bottom: 32px; }
 .db-heading h1 { font-size: clamp(30px, 3.5vw, 42px); font-weight: 740; letter-spacing: -.035em; line-height: 1.2; }
 .db-heading .db-date-heading { letter-spacing: 0; }
+.db-heading-content { min-width: 0; }
+.db-home-date-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 12px; }
+.db-home-date-picker button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: var(--radius); }
+.db-home-date-picker input { min-width: 0; width: 152px; min-height: 44px; padding: 0 10px; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); font: inherit; }
+.db-home-date-picker button:disabled { color: var(--muted); opacity: .6; cursor: default; }
 .db-heading h1 span { color: #565f69; font-weight: 500; }
 .db-heading p { margin-top: 10px; color: var(--muted); font-size: 16px; }
 .db-primary { flex: none; padding: 0 18px; min-height: 44px; border-radius: var(--radius); background: var(--action); color: white; font-size: 14px; font-weight: 600; }
@@ -164,7 +169,15 @@
 .db-todo-group { margin-top: 24px; }
 .db-todo-group h2 { font-size: 19px; overflow-wrap: anywhere; }
 .db-todos li { padding-inline: 10px; margin: 3px 0; }
-.db-todos li.db-memo-row { display: grid; grid-template-columns: max-content fit-content(80px) minmax(0, 1fr) 44px; gap: 8px; padding-inline: 0; }
+.db-todos li.db-memo-row { display: grid; grid-template-columns: max-content fit-content(80px) minmax(0, 1fr) 44px 44px; gap: 8px; padding-inline: 0; }
+.db-memo-delete { flex: none; min-width: 44px; min-height: 44px; padding: 0 6px; color: var(--muted); font-size: 12px; border-radius: var(--radius); }
+.db-memo-delete:hover { color: #b42318; background: #fff1f0; }
+.daybook .db-delete-memo-preview { margin-block: 20px 8px; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .db-todos li.db-memo-row { grid-template-columns: max-content fit-content(72px) minmax(0, 1fr) 44px; column-gap: 6px; row-gap: 0; }
+  .db-memo-row .db-memo-complete { grid-column: 4; grid-row: 1; }
+  .db-memo-row .db-memo-delete { grid-column: 3 / 5; justify-self: end; }
+}
 .db-memo-marker { min-width: 2ch; color: var(--muted); font-variant-numeric: tabular-nums; }
 .db-memo-row > .db-category-label { justify-self: start; }
 .db-discord-memo-status { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; color: var(--muted); font-size: 12px; }

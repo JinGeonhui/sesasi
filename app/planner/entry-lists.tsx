@@ -3,8 +3,8 @@ import { ArrivalInfo } from "./transit-arrivals";
 import { eventHours, todoCategory, type CalendarEvent, type Todo, type TransitRoute } from "./data";
 import { memoRows } from "./discord-format";
 
-type TodoActions = { edit: (todo: Todo) => void; insert: (todo: Todo) => void; toggle: (todo: Todo) => void };
-export function TodoList({ items, compact, itemName = "할 일", edit, insert, toggle }: TodoActions & { items: Todo[]; compact?: boolean; itemName?: string }) {
+type TodoActions = { edit: (todo: Todo) => void; insert: (todo: Todo) => void; toggle: (todo: Todo) => void; remove: (todo: Todo) => void };
+export function TodoList({ items, compact, itemName = "할 일", edit, insert, toggle, remove }: TodoActions & { items: Todo[]; compact?: boolean; itemName?: string }) {
   if (!items.length) return <p className="db-empty">표시할 {itemName === "메모" ? "메모가" : "할 일이"} 없어요.</p>;
   const rows = memoRows(items);
   if (itemName === "메모") return <ul className="db-list db-todos">{rows.map(({ todo, marker }) =>
@@ -17,6 +17,7 @@ export function TodoList({ items, compact, itemName = "할 일", edit, insert, t
       <label className="db-memo-complete">
         <input type="checkbox" checked={todo.done} aria-label={`${todo.title} 완료`} onChange={() => toggle(todo)}/>
       </label>
+      <button type="button" className="db-memo-delete" aria-label={`${todo.title} 메모 삭제`} onClick={() => remove(todo)}>삭제</button>
     </li>
   )}</ul>;
   return <ul className="db-list db-todos">{rows.map(({ todo, marker }) =>
@@ -29,6 +30,7 @@ export function TodoList({ items, compact, itemName = "할 일", edit, insert, t
         </span>
       </button>
       <button className="db-insert-action" aria-label={`${todo.title} 아래에 ${itemName} 추가`} onClick={() => insert(todo)}>아래에 추가</button>
+      <button type="button" className="db-memo-delete" aria-label={`${todo.title} 할 일 삭제`} onClick={() => remove(todo)}>삭제</button>
     </li>
   )}</ul>;
 }
