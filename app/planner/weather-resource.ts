@@ -54,7 +54,7 @@ type ResourceOptions = {
 export function createWeatherResource(kind: WeatherKind, city: City, options: ResourceOptions = {}) {
   const now = options.now ?? Date.now;
   const request = options.request ?? fetchWeather;
-  const storage = options.storage ?? (() => { try { return localStorage; } catch { return undefined; } });
+  const storage = options.storage ?? (() => undefined);
   let state = initialWeather, failures = 0, controller: AbortController | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<() => void>();

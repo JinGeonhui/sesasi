@@ -71,7 +71,7 @@ function Editor({ state, stories, onSave, onClose }: { state: EditorState; stori
         return;
       }
       setBusy(true);
-      try { await onSave(record); } catch { setError("저장하지 못했어요. 저장 공간과 브라우저 설정을 확인해 주세요."); setBusy(false); }
+      try { await onSave(record); } catch (err) { setError(err instanceof Error ? err.message : "서버에 저장하지 못했어요. 연결을 확인해 주세요."); setBusy(false); }
     }}>
       <div className="editor-intro">
       <section className="editor-art" aria-labelledby="editor-art-label"><h3 id="editor-art-label">이 기록의 아트</h3><p className="field-hint">대표 아트가 상세 화면의 중심에 크게 놓입니다.</p>
@@ -103,7 +103,7 @@ function Editor({ state, stories, onSave, onClose }: { state: EditorState; stori
       </fieldset>
       <label className="field">이 아트에 담긴 이야기<textarea rows={7} value={body} onChange={e => setBody(e.target.value)} placeholder="어떤 경험이었는지, 무엇을 했고 느꼈는지 자유롭게 남겨 주세요."/></label>
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="form-footer"><span>이 브라우저에 저장됩니다.</span><button className="primary-button" disabled={busy || !title.trim()} type="submit"><Icon name="check"/>{busy ? "처리 중…" : "기록 저장"}</button></div>
+      <div className="form-footer"><span>내 계정의 서버에 저장됩니다.</span><button className="primary-button" disabled={busy || !title.trim()} type="submit"><Icon name="check"/>{busy ? "처리 중…" : "기록 저장"}</button></div>
     </form>
   </Modal>;
 }
@@ -133,7 +133,7 @@ export default function Archive() {
       setReady(true);
     }).catch(() => {
       setActiveId(readRoute());
-      setToast("브라우저 저장소를 열 수 없습니다. 브라우저 설정을 확인해 주세요.");
+      setToast("서버에서 기록을 불러오지 못했습니다. 연결을 확인하고 새로고침해 주세요.");
     });
     let transition: ViewTransition | undefined;
     const route = () => {
@@ -230,7 +230,7 @@ export default function Archive() {
     )}
     {editor && <Editor state={editor} stories={stories} onSave={save} onClose={() => setEditor(null)}/>}
     {deleting && active && <Modal label="기록 삭제 확인" small onClose={() => {if (!mutating) setDeleting(false);}}><h2>이 기록을 지울까요?</h2><p>‘{active.title}’의 사진과 글이 삭제됩니다. 이어진 분기는 남아 있고, 연결만 정리됩니다.</p><div className="confirm-actions"><button className="outline-button" disabled={mutating} onClick={() => setDeleting(false)}>남겨 두기</button><button className="primary-button delete-button" disabled={mutating} onClick={async () => { setMutating(true); try { await persist(stories.filter(s => s.id !== active.id).map(s => s.parentId === active.id ? {...s, parentId:active.parentId} : s)); setDeleting(false); closeStory(); setToast("기록을 삭제했어요."); } catch { setToast("삭제하지 못했어요. 다시 시도해 주세요."); } finally { setMutating(false); } }}>기록 삭제</button></div></Modal>}
-    {pendingImport && <Modal label="백업 불러오기 확인" small onClose={() => {if (!mutating) setPendingImport(null);}}><h2>{pendingImport.length}개의 순간을 불러올까요?</h2><p>현재 기록을 백업 파일의 사진과 글로 교체합니다. 필요한 기록은 먼저 백업해 주세요.</p><div className="confirm-actions"><button className="outline-button" disabled={mutating} onClick={() => setPendingImport(null)}>취소</button><button className="primary-button" disabled={mutating} onClick={async () => { setMutating(true); try { await persist(pendingImport); setPendingImport(null); closeStory(); setToast("기록을 모두 불러왔어요."); } catch { setToast("백업을 저장하지 못했어요. 저장 공간을 확인해 주세요."); } finally { setMutating(false); } }}>불러오기</button></div></Modal>}
+    {pendingImport && <Modal label="백업 불러오기 확인" small onClose={() => {if (!mutating) setPendingImport(null);}}><h2>{pendingImport.length}개의 순간을 불러올까요?</h2><p>현재 기록을 백업 파일의 사진과 글로 교체합니다. 필요한 기록은 먼저 백업해 주세요.</p><div className="confirm-actions"><button className="outline-button" disabled={mutating} onClick={() => setPendingImport(null)}>취소</button><button className="primary-button" disabled={mutating} onClick={async () => { setMutating(true); try { await persist(pendingImport); setPendingImport(null); closeStory(); setToast("기록을 모두 불러왔어요."); } catch { setToast("백업을 저장하지 못했어요. 서버 연결을 확인해 주세요."); } finally { setMutating(false); } }}>불러오기</button></div></Modal>}
     {toast && <div className="toast" role="status"><Icon name="check" size={17}/>{toast}<button onClick={() => setToast("")} aria-label="알림 닫기"><Icon name="close" size={14}/></button></div>}
   </div>;
 }

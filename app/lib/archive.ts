@@ -1,3 +1,5 @@
+import { importRecords, listRecords, saveRecord } from "../planner/record-store";
+
 export type Story = {
   id: string;
   title: string;
@@ -20,33 +22,41 @@ export const sampleStories: Story[] = [
   { id: "today", title: "그리고, 이어지는 이야기", date: "2026-10-26", category: "life", images: ["/images/light.jpg"], parentId: null, body: "지나온 순간들을 연결해 보니 하나의 이야기가 되었다. 서로 상관없어 보이던 선택들도 지금의 나에게 닿아 있다.\n\n아직 채우지 않은 다음 장이 있다. 어떤 장면으로 이어질지는 모르지만, 나답게 기록해 보려고 한다." },
 ];
 
-function database(): Promise<IDBDatabase> {
+// IndexedDB is consulted only to migrate records from earlier releases.
+async function legacyStories(): Promise<Story[] | undefined> {
+  if (typeof indexedDB === "undefined") return undefined;
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("sesasi-archive", 1);
     request.onupgradeneeded = () => request.result.createObjectStore("archive");
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(new Error("이전 기록을 불러오지 못했어요. 기존 데이터는 보존했습니다."));
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction("archive", "readonly");
+      const read = tx.objectStore("archive").get("stories");
+      read.onsuccess = () => resolve(read.result);
+      read.onerror = () => reject(read.error);
+      tx.oncomplete = () => db.close();
+    };
   });
 }
+let archiveRevision = 0;
 export async function readStories(): Promise<Story[]> {
-  const db = await database();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("archive", "readonly");
-    const req = tx.objectStore("archive").get("stories");
-    req.onsuccess = () => resolve(req.result ?? sampleStories);
-    req.onerror = () => reject(req.error);
-    tx.oncomplete = () => db.close();
-  });
+  let rows = await listRecords<Story[]>("archive");
+  let row = rows.find(row => row.key === "stories");
+  if (!row) {
+    const legacy = await legacyStories();
+    if (legacy !== undefined && !validateStories(legacy)) throw new Error("이전 기록의 형식을 확인하지 못했어요. 기존 데이터는 보존했습니다.");
+    await importRecords("archive", [{ key: "stories", value: legacy ?? sampleStories }]);
+    rows = await listRecords<Story[]>("archive");
+    row = rows.find(row => row.key === "stories");
+  }
+  if (!row || !validateStories(row.value)) throw new Error("서버 기록을 확인하지 못했습니다.");
+  archiveRevision = row.revision;
+  return row.value;
 }
 export async function writeStories(stories: Story[]) {
-  const db = await database();
-  return new Promise<void>((resolve, reject) => {
-    const tx = db.transaction("archive", "readwrite");
-    tx.objectStore("archive").put(stories, "stories");
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-    tx.onabort = () => { db.close(); reject(tx.error); };
-  });
+  if (!validateStories(stories)) throw new Error("기록의 형식을 확인해 주세요.");
+  archiveRevision = await saveRecord("archive", "stories", stories, archiveRevision);
 }
 export function hasChronologicalDates(stories: Story[]): boolean {
   const byId = new Map(stories.map(story => [story.id, story]));

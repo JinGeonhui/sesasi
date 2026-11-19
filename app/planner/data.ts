@@ -41,13 +41,6 @@ export function eventHours(event: CalendarEvent, day?: string) {
 }
 
 export const kindNames = { event: "일정", todo: "할 일", route: "교통 노선", note: "작업 메모" };
-export const prefix = "sesasi.planner.v1.";
-export function readEntries(): Entry[] {
-  return Object.keys(localStorage).filter(key => key.startsWith(prefix)).flatMap(key => {
-    const value = localStorage.getItem(key);
-    return value ? [JSON.parse(value) as Entry] : [];
-  });
-}
 export function dateKey(date: Date) {
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }

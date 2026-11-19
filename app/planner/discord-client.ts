@@ -1,6 +1,6 @@
-import { cloudConfigured, cloudRequest, CloudError } from "./cloud.ts";
-import { readEntries, todoCategory, todoOrder, type Todo } from "./data";
-import { readCategories, resolveCategory } from "./categories";
+import { cloudClient, cloudConfigured, cloudRequest, CloudError } from "./cloud.ts";
+import { todoCategory, todoOrder, type Todo } from "./data";
+import { loadPlanner } from "./planner-store";
 import { memoCreatedOn } from "./discord-format";
 
 export type DiscordStatus = {
@@ -21,18 +21,18 @@ const messages: Record<string, string> = {
   DISCORD_UNAVAILABLE: "디스코드에 연결하지 못했어요. 메모는 저장됐으며 연결이 복구되면 다시 보내요.",
   DISCORD_REJECTED: "디스코드가 메시지를 받지 못했어요. 텍스트 채널의 웹후크인지 확인해 주세요.",
   RATE_LIMITED: "디스코드 전송 요청이 많아 잠시 기다린 뒤 자동으로 다시 보내요.",
-  SOURCE_MISMATCH: "다른 브라우저의 메모가 연결되어 있어요. 처음 연동한 브라우저에서 메모를 열어 주세요.",
+  SOURCE_MISMATCH: "메모를 저장했던 브라우저에서 새 버전을 열어 이전 기록을 가져와 주세요.",
   INVALID_MEMOS: "일부 메모의 형식을 확인하지 못해 전송을 멈췄어요. 메모를 수정한 뒤 다시 시도해 주세요.",
-  STATE_UNAVAILABLE: "이 컴퓨터에 연결 설정을 저장하지 못했어요. 저장 공간을 확인해 주세요.",
+  STATE_UNAVAILABLE: "서버의 연결 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.",
   BUSY: "메모를 반영하고 있어요. 잠시 후 다시 시도해 주세요.",
 };
 export const discordError = (code: string) => messages[code] ?? "디스코드 연동을 완료하지 못했어요. 다시 시도해 주세요.";
 
-export function discordSource() {
-  const key = "sesasi.discord.source.v1";
-  let id = localStorage.getItem(key);
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); }
-  return id;
+export async function discordSource() {
+  const client = cloudClient();
+  const session = await client?.auth.getSession();
+  if (!session?.data.session) throw new CloudError('LOGIN_REQUIRED');
+  return session.data.session.user.id;
 }
 function apiBase() {
   // The connector holds a private webhook; it is deliberately local-only.
@@ -59,11 +59,10 @@ async function request(path: string, method = "GET", body?: object): Promise<Dis
   return result;
 }
 
-export function discordTodos(): Todo[] {
-  const entries = readEntries();
-  const catalog = readCategories(entries);
+export async function discordTodos(): Promise<Todo[]> {
+  const { entries } = await loadPlanner();
   return entries.filter((entry): entry is Todo => entry.kind === "todo").map((entry): Todo => {
-    const todo = resolveCategory(entry, catalog);
+    const todo = entry;
     return { id: todo.id, kind: "todo", date: todo.date, title: todo.title, done: todo.done,
       category: todoCategory(todo), order: todoOrder(todo), createdOn: memoCreatedOn(todo) };
   }).sort((a, b) => a.id.localeCompare(b.id));
@@ -83,9 +82,9 @@ function update(status: DiscordStatus) { publish({ phase: "ready", status, error
 export async function refreshDiscord() {
   return serialized(async () => {
     try {
-      const sourceId = discordSource();
+      const sourceId = await discordSource();
       let status = await request(`/v1/status?sourceId=${encodeURIComponent(sourceId)}`);
-      if (status.own && status.configured) status = await request("/v1/sync", "POST", { sourceId, todos: discordTodos() });
+      if (status.own && status.configured) status = await request("/v1/sync", "POST", { sourceId, todos: await discordTodos() });
       update(status);
     } catch (error) {
       publish({ phase: "error", status: current.status, error: error instanceof Error ? error.message : "메모 저장소를 읽지 못했어요." });

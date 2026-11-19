@@ -5,8 +5,8 @@ import { todoCategory, uncategorized, type Todo } from "./data";
 type Props = {
   categories: string[];
   todos: Todo[];
-  onAdd: (name: string) => void;
-  onDelete: (name: string) => void;
+  onAdd: (name: string) => Promise<unknown>;
+  onDelete: (name: string) => Promise<unknown>;
   onClose?: () => void;
   embedded?: boolean;
 };
@@ -15,6 +15,7 @@ export default function CategoryManager({ categories, todos, onAdd, onDelete, on
   const dialog = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     if (embedded) return;
@@ -27,25 +28,29 @@ export default function CategoryManager({ categories, todos, onAdd, onDelete, on
     const category = todoCategory(todo);
     counts.set(category, (counts.get(category) ?? 0) + 1);
   }
-  function add(e: FormEvent) {
+  async function add(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
+    setBusy(true);
     try {
-      onAdd(name.trim());
+      await onAdd(name.trim());
       setName(""); setError("");
     } catch (err) {
-      setError(err instanceof DOMException ? "저장 공간을 확인해 주세요." : (err as Error).message);
-    }
+      setError(err instanceof DOMException ? "서버 연결을 확인해 주세요." : (err as Error).message);
+    } finally { setBusy(false); }
   }
-  function remove(category: string) {
+  async function remove(category: string) {
+    if (busy) return;
+    setBusy(true);
     try {
-      onDelete(category);
+      await onDelete(category);
       setPending(null); setError("");
     } catch {
-      setError("카테고리를 삭제할 수 없어요. 목록과 저장 공간을 확인해 주세요.");
-    }
+      setError("카테고리를 삭제할 수 없어요. 서버 연결을 확인해 주세요.");
+    } finally { setBusy(false); }
   }
 
-  const content = <>
+  const content = <fieldset className="db-saving-fields" disabled={busy}>
     {!embedded && <header><h2 id="db-manage-title">카테고리 관리</h2><button onClick={onClose} aria-label="닫기"><Icon name="close"/></button></header>}
     <form className="db-category-create" onSubmit={add}>
       <label>새 카테고리 이름<input required maxLength={40} placeholder="예: 운동" value={name} onChange={e => setName(e.target.value)}/></label>
@@ -63,7 +68,7 @@ export default function CategoryManager({ categories, todos, onAdd, onDelete, on
         </div>}
       </li>;
     })}</ul>
-  </>;
+  </fieldset>;
   return embedded
     ? <section className="db-dialog db-category-settings" aria-label="메모 카테고리 관리">{content}</section>
     : <dialog ref={dialog} className="db-dialog" aria-labelledby="db-manage-title" onCancel={onClose}>{content}</dialog>;

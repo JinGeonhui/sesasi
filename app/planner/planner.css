@@ -292,3 +292,5 @@
 .db-cloud-account input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 16px; }
 .db-cloud-account button { min-height: 44px; border-radius: 6px; padding: 8px 16px; color: #fff; background: #2563eb; }
 .db-cloud-account button:disabled { opacity: .5; }
+
+.db-saving-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: contents; }

@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import CategoryManager from "./category-manager";
-import { addCategory, categoryPrefix, categoryVersion, deleteCategory, readCategories, resolveCategory } from "./categories";
-import { useEffect, useState } from "react";
+import { addCategory, deleteCategory, loadPlanner, saveEntry, type PlannerSnapshot } from "./planner-store";
+import { useEffect, useRef, useState } from "react";
 import Calendar, { weekdays } from "./calendar";
-import { compareTodos, todoCategory, uncategorized, type Todo, dateKey, formatDay, kindNames, localDate, onDay, prefix, readEntries, shift, type Entry, type Kind } from "./data";
+import { compareTodos, todoCategory, uncategorized, type Todo, dateKey, formatDay, kindNames, localDate, onDay, shift, type Entry, type Kind } from "./data";
 import { EventAgenda, RoutesView, TodoList, TodosView } from "./entry-lists";
 import EntryEditor from "./entry-editor";
 import WeatherCard from "./weather";
@@ -40,54 +40,55 @@ export default function Planner({ tab }: { tab: Tab }) {
   const [today, setToday] = useState("");
   const [selectedDay, setDay] = useState("");
   const day = tab === "overview" ? today : selectedDay;
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [editor, setEditor] = useState<{kind: Kind; entry?: Entry; after?: Todo} | null>(null);
+  const [snapshot, setSnapshot] = useState<PlannerSnapshot | null>(null);
+  const entries = snapshot?.entries ?? [];
+  const catalog = snapshot?.catalog ?? new Map<string, string>();
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const loadSequence = useRef(0);
+  const [editor, updateEditor] = useState<{kind: Kind; entry?: Entry; after?: Todo} | null>(null);
+  const editorSnapshot = useRef<PlannerSnapshot | null>(null);
+  const setEditor = (value: typeof editor) => { if (value) editorSnapshot.current = snapshot; updateEditor(value); };
   const [error, setError] = useState("");
-  const [catalog, setCatalog] = useState(new Map<string, string>());
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [routeMode, setRouteMode] = useState("전체");
   const [eventFilter, setEventFilter] = useState("선택한 날짜");
-  function loadPlanner() {
-    const stored = readEntries();
-    const nextCatalog = readCategories(stored);
-    setCatalog(nextCatalog);
-    setEntries(stored.map(entry => entry.kind === "todo" ? resolveCategory(entry, nextCatalog) : entry));
+  async function reload() {
+    const sequence = ++loadSequence.current;
+    const next = await loadPlanner();
+    if (sequence === loadSequence.current) { setSnapshot(next); setError(""); }
   }
-
   useEffect(() => {
     const updateDay = () => setToday(dateKey(new Date()));
-    updateDay();
-    setDay(dateKey(new Date()));
-    const timer = setInterval(updateDay, 60000);
-    const load = () => {
-      try { loadPlanner(); setError(""); }
-      catch { setError("저장된 항목을 불러오지 못했어요. 브라우저 저장소를 확인해 주세요."); }
-    };
-    const sync = (e: StorageEvent) => { if (!e.key || e.key.startsWith(prefix) || e.key.startsWith(categoryPrefix)) load(); };
+    let alive = true;
+    const sequenceRef = loadSequence;
+    queueMicrotask(() => { if (alive) { updateDay(); setDay(dateKey(new Date())); } });
+    const load = () => { if (!savingRef.current) void reload().catch(err => setError(err.message)); };
+    const visible = () => { if (document.visibilityState === "visible") load(); };
     load();
-    window.addEventListener("storage", sync);
-    return () => { clearInterval(timer); window.removeEventListener("storage", sync); };
+    const timer = setInterval(() => { updateDay(); visible(); }, 30000);
+    window.addEventListener("focus", load);
+    window.addEventListener("online", load);
+    document.addEventListener("visibilitychange", visible);
+    return () => { alive = false; ++sequenceRef.current; clearInterval(timer); window.removeEventListener("focus", load); window.removeEventListener("online", load); document.removeEventListener("visibilitychange", visible); };
   }, []);
 
-  function save(entry: Entry, remove = false, customCategory = false) {
-    if (!remove && entry.kind === "todo") {
-      const name = todoCategory(entry);
-      if (name !== uncategorized) {
-        let version = catalog.get(name);
-        if (!version && customCategory) version = addCategory(name);
-        if (!version || categoryVersion(name) !== version) throw new Error("카테고리가 변경됐어요. 다시 선택해 주세요.");
-        entry = { ...entry, categoryVersion: version };
-      }
-    }
-    if (remove) localStorage.removeItem(prefix + entry.id);
-    else localStorage.setItem(prefix + entry.id, JSON.stringify(entry));
-    loadPlanner();
-    window.dispatchEvent(new Event("sesasi-planner-change"));
+  async function mutate(operation: (current: PlannerSnapshot) => Promise<unknown>) {
+    if (!snapshot || savingRef.current) throw new Error("저장이 끝날 때까지 기다려 주세요.");
+    savingRef.current = true; setSaving(true); ++loadSequence.current;
+    try {
+      await operation(snapshot);
+      // A successful write stays successful even if the following refresh fails.
+      try { await reload(); } catch { setError("서버에 저장됐지만 목록을 갱신하지 못했어요. 새로고침해 주세요."); }
+    } finally { savingRef.current = false; setSaving(false); }
   }
-  function toggle(entry: Entry) {
+  async function save(entry: Entry, remove = false, customCategory = false) {
+    await mutate(current => saveEntry(entry, remove, customCategory, current));
+  }
+  async function toggle(entry: Entry) {
     if (entry.kind !== "todo") return;
-    try { save({ ...entry, done: !entry.done }); }
-    catch { setError("완료 상태를 저장하지 못했어요."); }
+    try { await save({ ...entry, done: !entry.done }); }
+    catch (err) { setError((err as Error).message); }
   }
   const events = entries.filter(e => e.kind === "event").sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   const todos = entries.filter(e => e.kind === "todo").sort(compareTodos);
@@ -112,10 +113,11 @@ export default function Planner({ tab }: { tab: Tab }) {
     <main className="db-main">
       <header className="db-heading">
         <h1 className={overview ? "db-date-heading" : undefined}>{heading}</h1>
-        {addKind && <button className="db-primary" disabled={!day} onClick={() => setEditor({ kind: addKind })}>{kindNames[addKind]} 추가</button>}
+        {addKind && <button className="db-primary" disabled={!day || !snapshot || saving} onClick={() => setEditor({ kind: addKind })}>{kindNames[addKind]} 추가</button>}
       </header>
-      {error && <p className="db-error" role="alert">{error}</p>}
-      {!day ? <p role="status">플래너를 여는 중…</p> : <>
+      {error && <div className="db-error" role="alert">{error} <button onClick={() => void reload().catch(err => setError(err.message))}>다시 불러오기</button></div>}
+      {saving && <p role="status">서버에 저장 중…</p>}
+      {!day || !snapshot ? <p role="status">서버에서 기록을 불러오는 중…</p> : <>
         {(overview || history) && <div className={overview ? "db-overview" : "db-history"}>
           <div className="db-agenda">
             {history && <section className="db-history-picker" aria-label="기록 날짜 선택">
@@ -145,13 +147,8 @@ export default function Planner({ tab }: { tab: Tab }) {
         {tab === "categories" && <>
           <Link href="/planner/settings/" className="db-text-action db-category-back">설정으로 돌아가기</Link>
           <CategoryManager embedded categories={categories} todos={todos}
-            onAdd={name => { addCategory(name); loadPlanner(); }}
-            onDelete={name => {
-              const version = catalog.get(name);
-              if (!version) throw new Error();
-              deleteCategory(name, version);
-              loadPlanner();
-            }}/>
+            onAdd={name => mutate(current => addCategory(name, current))}
+            onDelete={name => mutate(current => deleteCategory(name, current))}/>
         </>}
         {tab === "todo" && <TodosView items={todos} {...categoryControls} {...todoActions}/>}
         {tab === "route" && <RoutesView routes={routes} edit={edit} mode={routeMode} setMode={setRouteMode}/>}
@@ -160,8 +157,8 @@ export default function Planner({ tab }: { tab: Tab }) {
         )}</ul> : <p className="db-empty">첫 작업 메모를 남겨 보세요.</p>}</section>}
       </>}
     </main>
-    {editor && <EntryEditor kind={editor.kind} kindLabel={(overview || history) && editor.kind === "todo" ? "메모" : undefined} longTerm={tab === "event" && eventFilter === "장기 일정"} day={editor.after?.date ?? day} after={editor.after} categories={categories} selectedCategory={selectedCategory} routeMode={routeMode === "지하철" ? "지하철" : "버스"} entry={editor.entry} onClose={() => setEditor(null)} onChange={(entry, remove, customCategory) => {
-      save(entry, remove, customCategory);
+    {editor && <EntryEditor kind={editor.kind} kindLabel={(overview || history) && editor.kind === "todo" ? "메모" : undefined} longTerm={tab === "event" && eventFilter === "장기 일정"} day={editor.after?.date ?? day} after={editor.after} categories={categories} selectedCategory={selectedCategory} routeMode={routeMode === "지하철" ? "지하철" : "버스"} entry={editor.entry} onClose={() => setEditor(null)} onChange={async (entry, remove, customCategory) => {
+      await mutate(current => saveEntry(entry, remove ?? false, customCategory ?? false, editorSnapshot.current ?? current));
       if (!remove && entry.kind === "todo" && selectedCategory) setCategoryFilter(todoCategory(entry));
       if (!remove && entry.kind === "route" && routeMode !== "전체") setRouteMode(entry.mode);
       if (!remove && entry.kind === "event" && tab === "event") setDay(entry.date);

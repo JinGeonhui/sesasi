@@ -15,7 +15,7 @@ type Props = {
   selectedCategory: string | null;
   routeMode: "버스" | "지하철";
   onClose: () => void;
-  onChange: (entry: Entry, remove?: boolean, customCategory?: boolean) => void;
+  onChange: (entry: Entry, remove?: boolean, customCategory?: boolean) => Promise<void>;
 };
 
 export default function EntryEditor(props: Props) {
@@ -35,6 +35,7 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
   const minEnd = (start: string) => multiDay && start ? dateKey(shift(localDate(start), 1)) : start;
   const [end, setEnd] = useState(entry?.kind === "event" ? entry.end : minEnd(day));
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => {
     const el = dialog.current;
@@ -42,14 +43,16 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
     return () => el?.close();
   }, []);
 
-  function commit(value: Entry, remove = false) {
+  async function commit(value: Entry, remove = false) {
+    if (busy) return;
+    setBusy(true);
     try {
-      onChange(value, remove, kind === "todo" && category === null);
+      await onChange(value, remove, kind === "todo" && category === null);
       onClose();
     } catch (err) {
       if (err instanceof Error && !(err instanceof DOMException)) { setError(err.message); return; }
-      setError("저장하지 못했어요. 브라우저 저장 공간과 설정을 확인해 주세요.");
-    }
+      setError("저장하지 못했어요. 서버 연결을 확인하고 다시 시도해 주세요.");
+    } finally { setBusy(false); }
   }
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -85,9 +88,9 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
     }
   }
 
-  return <dialog className="db-dialog" ref={dialog} aria-labelledby="db-editor-name" onCancel={onClose}>
-    <header><h2 id="db-editor-name">{kindLabel ?? kindNames[kind]} {entry ? "수정" : after ? "끼워 넣기" : "추가"}</h2><button aria-label="닫기" onClick={onClose}><Icon name="close"/></button></header>
-    <form onSubmit={submit}>
+  return <dialog className="db-dialog" ref={dialog} aria-labelledby="db-editor-name" onCancel={e => { if (busy) e.preventDefault(); else onClose(); }}>
+    <header><h2 id="db-editor-name">{kindLabel ?? kindNames[kind]} {entry ? "수정" : after ? "끼워 넣기" : "추가"}</h2><button aria-label="닫기" onClick={onClose} disabled={busy}><Icon name="close"/></button></header>
+    <form onSubmit={submit}><fieldset disabled={busy} className="db-saving-fields">
       {after && <p className="db-field-hint">‘{after.title}’ 다음에 추가해요.</p>}
       <label>제목<input name="title" required maxLength={120} autoFocus defaultValue={entry?.title} placeholder="제목 입력"/></label>
       {kind !== "route" && <div className="db-fields"><label>{kind === "event" ? "시작일" : "날짜"}<input type="date" required readOnly={Boolean(after)} value={date} onChange={e => { setDate(e.target.value); if (end === date || end < minEnd(e.target.value)) setEnd(minEnd(e.target.value)); }}/></label>
@@ -108,7 +111,7 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
       {kind === "note" && <label>메모 내용<textarea name="body" rows={6} maxLength={20000} defaultValue={entry?.kind === "note" ? entry.body : ""} placeholder="작업 과정이나 기억할 내용을 남겨 보세요."/></label>}
       {error && <p role="alert" className="db-error">{error}</p>}
       {confirmDelete ? <footer><span>삭제할까요?</span><button type="button" onClick={() => setConfirmDelete(false)}>취소</button><button type="button" className="db-danger" onClick={() => entry && commit(entry, true)}>삭제하기</button></footer> :
-      <footer>{entry && <button type="button" className="db-delete" onClick={() => setConfirmDelete(true)}>삭제</button>}<button type="button" onClick={onClose}>취소</button><button className="db-primary" type="submit">저장</button></footer>}
-    </form>
+      <footer>{entry && <button type="button" className="db-delete" onClick={() => setConfirmDelete(true)}>삭제</button>}<button type="button" onClick={onClose} disabled={busy}>취소</button><button className="db-primary" type="submit">저장</button></footer>}
+    </fieldset></form>
   </dialog>;
 }

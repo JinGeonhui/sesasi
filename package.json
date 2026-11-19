@@ -15,7 +15,8 @@
     "lint": "eslint",
     "test:cloud": "node --experimental-strip-types --test tests/cloud.test.mjs",
     "check:cloud": "deno check supabase/functions/weather/index.ts supabase/functions/transit/index.ts supabase/functions/discord-sync/index.ts",
-    "supabase:deploy": "supabase functions deploy weather transit discord-sync --use-api --yes"
+    "supabase:deploy": "supabase functions deploy weather transit discord-sync --use-api --yes",
+    "test:storage": "node --experimental-strip-types --test tests/login.test.mjs tests/planner-storage.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

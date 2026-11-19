@@ -27,6 +27,11 @@ export function cloudClient() {
   }
   return client;
 }
+// A separate, non-persistent client verifies a newly saved password without
+// replacing the user's current session or storing another token in the browser.
+export function passwordVerifier() {
+  return createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sesasi.password-check' } });
+}
 export async function cloudRequest(name: 'weather' | 'transit' | 'discord-sync', params: Record<string, string>, init: RequestInit = {}) {
   const client = cloudClient();
   if (!client) throw new CloudError('LOGIN_REQUIRED');

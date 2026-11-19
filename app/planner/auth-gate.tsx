@@ -9,8 +9,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (cloudConfigured && auth.ready && !auth.session) router.replace('/login/');
   }, [auth.ready, auth.session, router]);
-  if (cloudConfigured && (!auth.ready || !auth.session)) {
+  if (!cloudConfigured) return <main role="alert">서버가 설정되지 않았습니다. 서버 설정을 확인해 주세요.</main>;
+  if (!auth.ready || !auth.session) {
     return <main className="daybook db-auth-loading" role="status">로그인 확인 중…</main>;
   }
-  return children;
+  return <div key={auth.session.user.id} style={{ display: "contents" }}>{children}</div>;
 }

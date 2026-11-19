@@ -1,28 +1,9 @@
 import { useSyncExternalStore } from "react";
+import { usePreference } from "./preferences";
 import { useWeatherMetrics, weatherMetrics, weatherViews, type WeatherMetric, type WeatherView } from "./weather-preferences";
 import { cities, condition, dustLevel, weatherTime, type City } from "./weather-data";
 import { getServerWeather, weatherResource, type WeatherSnapshot } from "./weather-resource";
 
-const cityKey = "sesasi.weather.city", cityEvent = "sesasi-weather-city-change";
-let fallbackCity: City = "광주", memoryOnly = false;
-function citySnapshot(): City {
-  if (memoryOnly) return fallbackCity;
-  try {
-    const saved = localStorage.getItem(cityKey);
-    return saved && Object.hasOwn(cities, saved) ? saved as City : fallbackCity;
-  } catch { return fallbackCity; }
-}
-function subscribeCity(listener: () => void) {
-  const onStorage = (event: StorageEvent) => { if (event.key === null || event.key === cityKey) { fallbackCity = "광주"; memoryOnly = false; listener(); } };
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(cityEvent, listener);
-  return () => { window.removeEventListener("storage", onStorage); window.removeEventListener(cityEvent, listener); };
-}
-function selectCity(city: City) {
-  fallbackCity = city;
-  try { localStorage.setItem(cityKey, city); memoryOnly = false; } catch { memoryOnly = true; }
-  window.dispatchEvent(new Event(cityEvent));
-}
 function emptyStatus(state: WeatherSnapshot) {
   if (state.data) return "제공되지 않음";
   if (state.error === "auth") return "개인 계정 로그인 필요";
@@ -42,8 +23,9 @@ function statusMessage(state: WeatherSnapshot) {
 function readingTime(time: string) { return `${time.slice(5, 7)}/${time.slice(8, 10)} ${time.slice(11, 16)}`; }
 
 export default function WeatherCard() {
-  const { selected, view, selectView } = useWeatherMetrics();
-  const city = useSyncExternalStore(subscribeCity, citySnapshot, () => "광주" as City);
+  const { selected, view, selectView, error: metricsError, disabled: metricsDisabled } = useWeatherMetrics();
+  const cityPreference = usePreference("sesasi.weather.city", "광주");
+  const city = (Object.hasOwn(cities, cityPreference.value) ? cityPreference.value : "광주") as City;
   const weatherFeed = weatherResource("weather", city), airFeed = weatherResource("air", city);
   const weather = useSyncExternalStore(weatherFeed.subscribe, weatherFeed.getSnapshot, getServerWeather);
   const air = useSyncExternalStore(airFeed.subscribe, airFeed.getSnapshot, getServerWeather);
@@ -62,15 +44,16 @@ export default function WeatherCard() {
     { key: "pm25", value: a?.fine ?? null, unit: "µg/m³", detail: a?.fine != null ? dustLevel(a.fine, true) : airStatus },
   ];
   return <section className="db-weather" aria-label="현재 날씨">
-    <div className="db-section-head"><h2>현재 날씨</h2><select className="db-city-select" aria-label="날씨 지역" value={city} onChange={e => {
+    <div className="db-section-head"><h2>현재 날씨</h2><select className="db-city-select" aria-label="날씨 지역" disabled={cityPreference.disabled} value={city} onChange={e => {
       const next = e.target.value as City;
-      selectCity(next);
+      void cityPreference.save(next);
     }}>{Object.keys(cities).map(name => <option key={name}>{name}</option>)}</select></div>
     <label className="db-weather-options">표시 항목
-      <select value={view} onChange={e => selectView(e.target.value as WeatherView)}>
+      <select disabled={metricsDisabled} value={view} onChange={e => selectView(e.target.value as WeatherView)}>
         {(Object.keys(weatherViews) as WeatherView[]).map(key => <option key={key} value={key}>{weatherViews[key].label}</option>)}
       </select>
     </label>
+    {(cityPreference.error || metricsError) && <p role="alert">{cityPreference.error || metricsError}</p>}
     <div className="db-weather-condition" aria-live="polite">
       <strong>{w ? condition(w.code) : weatherStatus}</strong>
     </div>

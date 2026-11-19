@@ -98,7 +98,7 @@ function RailPicker({ onPick }: PickerProps) {
 }
 
 export default function RouteEditor({ entry, initialMode, onClose, onChange }: {
-  entry?: TransitRoute; initialMode: "버스" | "지하철"; onClose: () => void; onChange: (entry: TransitRoute, remove?: boolean) => void;
+  entry?: TransitRoute; initialMode: "버스" | "지하철"; onClose: () => void; onChange: (entry: TransitRoute, remove?: boolean) => Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [mode, setMode] = useState(entry?.mode ?? initialMode);
@@ -106,11 +106,15 @@ export default function RouteEditor({ entry, initialMode, onClose, onChange }: {
   const [pick, setPick] = useState<Pick | null>(null);
   const [alias, setAlias] = useState(entry?.alias ?? "");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => { const el = dialog.current; el?.showModal(); return () => el?.close(); }, []);
-  function commit(value: TransitRoute, remove = false) {
-    try { onChange(value, remove); onClose(); }
-    catch { setError("저장하지 못했어요. 브라우저 저장 공간을 확인해 주세요."); }
+  async function commit(value: TransitRoute, remove = false) {
+    if (busy) return;
+    setBusy(true);
+    try { await onChange(value, remove); onClose(); }
+    catch (err) { setError(err instanceof Error ? err.message : "서버에 저장하지 못했어요. 다시 시도해 주세요."); }
+    finally { setBusy(false); }
   }
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -118,9 +122,9 @@ export default function RouteEditor({ entry, initialMode, onClose, onChange }: {
     if (!pick) { setError("노선과 승하차 지점을 목록에서 선택해 주세요."); return; }
     commit({ id: entry?.id ?? crypto.randomUUID(), kind: "route", mode, alias: alias.trim(), ...pick });
   }
-  return <dialog className="db-dialog db-transit-dialog" ref={dialog} aria-labelledby="db-route-editor-title" onCancel={onClose}>
-    <header><h2 id="db-route-editor-title">교통 노선 {entry ? "수정" : "추가"}</h2><button type="button" aria-label="닫기" onClick={onClose}><Icon name="close"/></button></header>
-    <form onSubmit={submit}>
+  return <dialog className="db-dialog db-transit-dialog" ref={dialog} aria-labelledby="db-route-editor-title" onCancel={e => { if (busy) e.preventDefault(); else onClose(); }}>
+    <header><h2 id="db-route-editor-title">교통 노선 {entry ? "수정" : "추가"}</h2><button type="button" aria-label="닫기" onClick={onClose} disabled={busy}><Icon name="close"/></button></header>
+    <form onSubmit={submit}><fieldset disabled={busy} className="db-saving-fields">
       {!replacing && entry ? <div className="db-transit-selected"><div><strong>{entry.title}</strong><small>{entry.from} → {entry.to}</small></div><button className="db-text-action" type="button" onClick={() => setReplacing(true)}>노선 변경</button></div> : <>
         <div className="db-segments" role="group" aria-label="교통수단">{(["버스", "지하철"] as const).map(value => <button key={value} type="button" aria-pressed={mode === value} onClick={() => { if (value !== mode) { setMode(value); setPick(null); setError(""); } }}>{value}</button>)}</div>
         {mode === "버스" ? <BusPicker onPick={setPick}/> : <RailPicker onPick={setPick}/>}
@@ -130,8 +134,8 @@ export default function RouteEditor({ entry, initialMode, onClose, onChange }: {
       {pick && <p className="db-transit-summary" aria-live="polite">{pick.title} · {pick.from} → {pick.to}</p>}
       {error && <p role="alert" className="db-error">{error}</p>}
       {confirmDelete ? <footer><span>삭제할까요?</span><button type="button" onClick={() => setConfirmDelete(false)}>취소</button><button type="button" className="db-danger" onClick={() => entry && commit(entry, true)}>삭제하기</button></footer> :
-        <footer>{entry && <button type="button" className="db-delete" onClick={() => setConfirmDelete(true)}>삭제</button>}<button type="button" onClick={onClose}>취소</button><button className="db-primary" type="submit" disabled={replacing && !pick}>저장</button></footer>}
+        <footer>{entry && <button type="button" className="db-delete" onClick={() => setConfirmDelete(true)}>삭제</button>}<button type="button" onClick={onClose} disabled={busy}>취소</button><button className="db-primary" type="submit" disabled={replacing && !pick}>저장</button></footer>}
       <p className="db-transit-source">교통정보: <a href={mode === "버스" ? "https://www.data.go.kr/data/15098529/openapi.do" : "https://www.data.go.kr/data/15098554/openapi.do"} target="_blank" rel="noreferrer">국토교통부 TAGO</a> · 제공 지역과 노선 기준</p>
-    </form>
+    </fieldset></form>
   </dialog>;
 }

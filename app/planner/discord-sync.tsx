@@ -2,8 +2,6 @@
 
 import { cloudConfigured } from "./cloud";
 import { useEffect, useSyncExternalStore } from "react";
-import { categoryPrefix } from "./categories";
-import { prefix } from "./data";
 import { getDiscordState, getServerDiscordState, refreshDiscord, subscribeDiscord } from "./discord-client";
 
 export function DiscordSync() {
@@ -19,20 +17,15 @@ export function DiscordSync() {
       if (again) { again = false; schedule(); }
     };
     const schedule = () => { clearTimeout(timer); timer = setTimeout(() => void run(), 600); };
-    const storage = (event: StorageEvent) => {
-      if (!event.key || event.key.startsWith(prefix) || event.key.startsWith(categoryPrefix) || event.key.startsWith("sesasi.discord.")) schedule();
-    };
     const visible = () => { if (document.visibilityState === "visible") schedule(); };
     schedule();
     const poll = setInterval(schedule, cloudConfigured ? 60000 : 10000);
-    window.addEventListener("storage", storage);
     window.addEventListener("sesasi-planner-change", schedule);
     window.addEventListener("online", schedule);
     window.addEventListener("sesasi-cloud-auth", schedule);
     document.addEventListener("visibilitychange", visible);
     return () => {
       alive = false; clearTimeout(timer); clearInterval(poll);
-      window.removeEventListener("storage", storage);
       window.removeEventListener("sesasi-planner-change", schedule);
       window.removeEventListener("online", schedule);
       window.removeEventListener("sesasi-cloud-auth", schedule);
