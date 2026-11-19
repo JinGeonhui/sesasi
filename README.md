@@ -128,23 +128,11 @@ URL을 넣은 뒤 `npm run dev`를 다시 실행하고 평소 쓰던 브라우�
 
 로컬 모드에서는 이 컴퓨터의 localhost 작업 페이지와 연결 서버를 켜 둔 동안 자동 반영합니다. 연결이 끊기면 메모는 로컬에 남고 다음 연결 때 다시 반영합니다. Supabase 웹 연결은 위 설정을 따릅니다. 기존 Android 설치본은 이번 웹 연결 검증에 포함하지 않습니다. 연결 서버만 실행하려면 `npm run discord:server`, 모의 응답으로 검증하려면 `npm run test:discord`를 사용합니다. 포트는 기본 `4192`이며 `.env.discord.local`의 `DISCORD_PORT`, `DISCORD_ALLOWED_ORIGINS`로 변경할 수 있습니다.
 
-## Android 하이브리드 앱
+## 배포 형태
 
-Android 빌드로 생성한 `public/downloads/sesasi.apk`를 휴대폰에 설치하면 **세사시** 앱에서 메인 필름, 사진·글 기록, 캘린더, 할 일, 교통 노선, 메모를 사용할 수 있습니다. 기존 앱과 같은 앱 식별자와 서명 키를 사용하므로 기존 앱 위에 업데이트할 수 있습니다.
+현재 배포 대상은 Vercel에서 제공하는 반응형 웹앱입니다. 화면은 Next.js 정적 빌드로 제공하고, 인증·개인 데이터 저장·외부 API 연동은 Supabase를 사용합니다. 로그인과 데이터 조회·저장은 인터넷 연결이 필요합니다.
 
-기존 Next.js 웹 화면 전체를 Android WebView에 포함합니다. 화면과 저장된 기록은 오프라인에서도 열 수 있으며, 날씨·대기질 조회에는 인터넷이 필요합니다. 카카오맵 등의 외부 링크는 휴대폰의 외부 앱으로 열립니다. 사진 첨부와 백업 복원은 Android 파일 선택기를, 백업 내보내기는 Android 저장 위치 선택기를 사용합니다. 휴대폰 뒤로 가기는 열린 대화상자를 닫거나 이전 화면으로 이동합니다.
-
-웹과 휴대폰 앱의 저장소는 각각 관리됩니다. 필름 기록은 JSON 백업·복원으로 옮길 수 있습니다. 캘린더·할 일·노선·메모는 해당 앱의 로컬 저장소에 보관됩니다.
-
-빌드에는 JDK 17, Android SDK Platform 35, Build Tools 35.0.0과 `rsync`, `zip`이 필요합니다. `JAVA_HOME`과 `ANDROID_HOME`을 지정한 뒤 실행합니다.
-
-```bash
-npm run build:android
-```
-
-웹 정적 빌드와 Android 코드를 묶은 로컬 서명 설치 파일이 `public/downloads/sesasi.apk`와 `out/downloads/sesasi.apk`에 생성됩니다. 웹 화면 변경도 새 앱 빌드에 포함됩니다. 업데이트에는 최초 빌드의 `android/build/local-debug.keystore`를 계속 사용하세요.
-
-Android 연결 코드는 `android/src/kr/sesasi/daybook/`, 웹의 백업 브리지는 `app/lib/native.ts`에 있습니다. `SESASI_ANDROID_DEBUG=1 npm run build:android`로 만든 개발용 설치본은 WebView 디버깅을 지원합니다.
+Android 앱 소스와 APK 빌드 명령은 제거했습니다. 기존에 설치한 Android 앱은 이 웹 배포로 업데이트되지 않습니다.
 
 ## 저장과 공개 포트폴리오
 

@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build",
-    "build:android": "bash android/build.sh",
     "transit:server": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.transit.local transit/server.mjs",
     "test:transit": "node --experimental-strip-types --test tests/transit.test.mjs",
     "discord:server": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.discord.local discord/server.mjs",
