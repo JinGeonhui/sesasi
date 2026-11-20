@@ -1,10 +1,18 @@
 # 디스코드 양방향 메모 연동
 
-기본 입력 방식은 **`/적용` 명령어**입니다. 지정한 Discord 채널에 날짜 제목과 메모를 작성한 뒤 명령어를 실행하면 시작일 이후의 본인 메모를 서사시에 반영합니다. 원문 수정·삭제도 명령어를 다시 실행할 때 반영합니다. 결과는 실행한 본인에게만 보입니다. 기존 앱 → Discord 웹후크 출력은 유지합니다.
+기본 입력 방식은 **`/memo` → 전용 입력창**입니다. 지정한 채널에서 실행하면 날짜(한국 시간 오늘 기본값)와 추가할 메모 목록을 입력할 수 있습니다. 날짜는 `YYYY.MM.DD` 또는 `YYYY-MM-DD`로 입력합니다. 본문에는 날짜 제목 없이 아래처럼 한 줄에 하나씩 씁니다.
 
-Supabase가 Discord의 HTTP 명령 요청을 받아 처리하므로 노트북·별도 상시 서버·주기 조회가 필요 없습니다. 명령어가 없으면 수신 조회를 실행하지 않습니다. 매 요청의 Ed25519 서명과 앱·서버·채널·작성자를 확인하고, 서버의 실행 기록으로 재전송과 동시 실행을 차단합니다. 명령어는 서버 관리자에게만 기본 노출하며 실제 처리 권한은 연결된 작성자로 추가 제한합니다.
+```text
+- [일상] finder 정리
+1. [작업] 다음 작업
+- ~~[작업] 완료한 계획~~
+```
 
-한 번에 최대 1,000개 채널 메시지를 탐색하며 함수 실행 시간 안에서 처리합니다. 범위를 끝까지 읽지 못하면 삭제를 추정하지 않습니다. 일부 메시지의 형식 오류·충돌·시간 제한이 있으면 결과에 알리고, 성공한 저장은 유지합니다.
+제출한 메모를 서버에 저장하고 기존 웹후크의 날짜별 목록을 갱신합니다. 입력 원문은 채널에 게시하지 않습니다. 완료 안내는 실행한 본인에게만 표시하고 5초 뒤 삭제합니다. 오류·출력 지연 안내는 유지합니다. 같은 날짜에 메모를 더 추가하려면 `/memo`를 다시 실행합니다. 기존 메모의 수정·삭제는 서사시에서 합니다. 이전에 채팅에 작성한 메시지는 보존하며 `/memo`는 채널 기록을 스캔하거나 삭제하지 않습니다.
+
+Supabase가 Discord의 HTTP 명령 요청을 받아 처리하므로 노트북·별도 상시 서버·주기 조회가 필요 없습니다. 매 요청의 Ed25519 서명과 앱·서버·채널·작성자를 확인하고, 서버의 실행 기록으로 재전송과 동시 실행을 차단합니다. 명령어는 서버 관리자에게만 기본 노출하며 실제 처리 권한은 연결된 작성자로 추가 제한합니다.
+
+입력창 한 번에 최대 3,980자, 카테고리 40자·각 메모 본문 120자입니다. 쉼표·괄호·금액·`>>`는 일반 본문입니다. 한 줄이라도 잘못되면 전체를 저장하지 않습니다. 기존 메모와 충돌하면 덮어쓰지 않고 안내합니다. 입력창 제출 기록은 채팅 원문과 별도 서버 공간에 보관해, 선택적 Gateway 기능에서 없는 메시지로 오인하여 삭제하지 않도록 합니다.
 
 ### 명령어 배포
 
@@ -15,11 +23,11 @@ Supabase가 Discord의 HTTP 명령 요청을 받아 처리하므로 노트북·�
 3. `supabase secrets set --env-file .env.discord-command.local`로 검증 설정을 서버에 저장합니다. 토큰 등은 `.env.discord-bridge.local`을 사용합니다.
 4. `supabase functions deploy discord-command --use-api --yes`로 명령어 함수를 배포합니다.
 5. `npm run discord:command -- --register`로 Interactions Endpoint URL과 서버용 명령어를 등록합니다. Discord가 실제 서명된 PING으로 URL을 검증합니다.
-6. 지정한 채널에서 `/적용`를 실행합니다. 앱 화면은 기존 서버 새로고침 때 반영됩니다.
+6. 지정한 채널에서 `/memo`를 실행하고 입력창을 제출합니다. 앱 화면은 기존 서버 새로고침 때 반영됩니다.
 
 아래의 Gateway 봇 실행은 선택적 실시간 방식입니다. 명령어 방식에서는 `npm run discord:bot`이나 Cron을 실행하지 않습니다.
 
-## 동작
+## 선택적 Gateway 방식의 동작
 
 - 지정한 본인 Discord 계정이 지정한 서버의 일반 텍스트 채널에 쓴 메시지만 읽습니다.
 - 메시지 앞의 `# YYYY.MM.DD` 또는 `# YYYY-MM-DD`가 대상 날짜입니다. 다른 날짜 제목을 추가하여 여러 날짜를 한 메시지에 쓸 수도 있습니다.
@@ -54,7 +62,7 @@ Discord Developer Portal에서 Application/Bot을 만들고 Bot의 **Message Con
 
 `bot.env.example`을 루트의 `.env.discord-bot.local`로, `bridge-secrets.env.example`을 `.env.discord-bridge.local`로 복사하여 실제 값을 넣습니다. 두 파일은 Git에서 제외됩니다. 기존 비밀키 파일을 빈 예제 값으로 덮어쓰지 않습니다. 토큰은 채팅이나 커밋에 붙여 넣지 않습니다.
 
-## 연결 순서
+## 선택적 Gateway 연결 순서
 
 1. 봇 설정과 위 환경변수를 준비합니다. `node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))"`로 공유 비밀키를 생성할 수 있습니다.
 2. `npm run discord:bot -- --check`로 로컬 환경변수 형식을 확인합니다. 이 명령은 Discord 연결·메시지 송신을 하지 않습니다.
@@ -77,4 +85,4 @@ Discord Developer Portal에서 Application/Bot을 만들고 Bot의 **Message Con
 
 `npm run test:discord-import`는 파싱·일반 텍스트 보존·중복·충돌·삭제·연결 복구·권한·양방향 출력과 실제 PostgreSQL 엔진(PGlite)의 원자적 저장/RLS를 테스트합니다. 기존 출력은 `npm run test:discord`, `npm run test:cloud`로 검증합니다. 모든 테스트는 모의 Discord 응답을 쓰며 실제 채널에 메시지를 보내지 않습니다.
 
-공식 문서: [Gateway/Message Content Intent](https://docs.discord.com/developers/events/gateway), [메시지 조회·수정 권한](https://docs.discord.com/developers/resources/message), [discord.js](https://discord.js.org/docs/packages/discord.js/main).
+공식 문서: [입력창](https://docs.discord.com/developers/components/reference#label), [명령 응답 삭제](https://docs.discord.com/developers/interactions/receiving-and-responding#delete-original-interaction-response), [Gateway/Message Content Intent](https://docs.discord.com/developers/events/gateway), [메시지 조회·수정 권한](https://docs.discord.com/developers/resources/message), [discord.js](https://discord.js.org/docs/packages/discord.js/main).

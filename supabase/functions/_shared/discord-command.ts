@@ -1,4 +1,6 @@
-import type { Environment } from './http.ts';
+import { HttpError, type Environment } from './http.ts';
+import { MEMO_MODAL_ID, memoModal, parseMemoModal } from './discord-modal.ts';
+import type { MemoInput } from './discord-import.ts';
 
 type ImportHandler = (request: Request) => Promise<Response>;
 type DiscordMessage = { id: string; channel_id: string; author: { id: string; bot?: boolean }; webhook_id?: string; timestamp: string; content: string };
@@ -70,12 +72,13 @@ type Dependencies = {
   waitUntil: (task: Promise<void>) => void;
   claim: (id: string) => Promise<string>;
   release: (id: string) => Promise<void>;
-  sync: () => ReturnType<typeof syncDiscordCommand>;
+  save: (id: string, rows: MemoInput[]) => Promise<{ count: number; outputPending: boolean }>;
+  sleep?: (ms: number) => Promise<void>;
   fetchImpl?: typeof fetch;
   now?: () => number;
 };
 
-export function createDiscordCommandHandler({ env, waitUntil, claim, release, sync, fetchImpl = fetch, now = Date.now }: Dependencies) {
+export function createDiscordCommandHandler({ env, waitUntil, claim, release, save, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = fetch, now = Date.now }: Dependencies) {
   return async (request: Request) => {
     if (request.method !== 'POST') return new Response(null, { status: 405 });
     const signature = request.headers.get('x-signature-ed25519') ?? '', timestamp = request.headers.get('x-signature-timestamp') ?? '';
@@ -93,30 +96,48 @@ export function createDiscordCommandHandler({ env, waitUntil, claim, release, sy
     try { interaction = JSON.parse(body); } catch { return new Response(null, { status: 400 }); }
     if (!interaction || interaction.application_id !== env('DISCORD_APPLICATION_ID')) return new Response(null, { status: 403 });
     if (interaction.type === 1) return Response.json({ type: 1 });
-    if (interaction.type !== 2 || interaction.data?.name !== '적용') return reply('지원하지 않는 명령어입니다.');
+    const command = interaction.type === 2 && interaction.data?.name === 'memo';
+    const submission = interaction.type === 5 && interaction.data?.custom_id === MEMO_MODAL_ID;
+    if (!command && !submission) return reply('메모를 추가하려면 /memo를 실행해 주세요.');
     if (interaction.guild_id !== env('DISCORD_GUILD_ID') || interaction.channel_id !== env('DISCORD_CHANNEL_ID') || interaction.member?.user?.id !== env('DISCORD_AUTHOR_ID')) return reply('지정된 메모 채널에서 연결된 본인 계정만 사용할 수 있습니다.');
     if (!snowflake(interaction.id) || typeof interaction.token !== 'string' || !/^[A-Za-z0-9._-]{1,512}$/.test(interaction.token)) return new Response(null, { status: 400 });
+    if (command) return Response.json(memoModal(now()));
+    let rows: MemoInput[];
+    try { rows = parseMemoModal(interaction.data.components, env('DISCORD_SYNC_FROM')); }
+    catch (error) {
+      return reply(error instanceof HttpError && error.code === 'OUTSIDE_SYNC_RANGE'
+        ? `${env('DISCORD_SYNC_FROM')} 이후 날짜로 입력해 주세요. /memo로 다시 열 수 있습니다.`
+        : '저장하지 못했습니다. 날짜와 각 줄의 형식을 확인해 주세요: - [카테고리] 내용 또는 1. [카테고리] 내용 (본문 120자 이하). /memo로 다시 열 수 있습니다.');
+    }
     const task = async () => {
-      let acquired = false, content: string;
+      let acquired = false, content: string, dismiss = false;
       try {
         const status = await claim(interaction.id);
         if (status === 'duplicate') return;
-        if (status !== 'acquired') content = '이미 동기화 중입니다. 잠시 후 다시 실행해 주세요.';
+        if (status !== 'acquired') content = '다른 메모를 저장 중입니다. 잠시 후 /memo로 다시 추가해 주세요.';
         else {
           acquired = true;
-          const result = await sync();
-          content = result.checked === 0 ? `${env('DISCORD_IMPORT_FROM')} 이후 작성한 가져오기 대상 메모가 없습니다.` : `서사시 반영 완료: 메시지 ${result.checked}개 확인, ${result.changed}개 변경.`;
-          if (result.failed || result.remaining) content += `\n반영하지 못한 메시지가 있습니다(오류 ${result.failed}개, 미처리 ${result.remaining}개). 날짜·목록 형식과 앱에서 수정한 내용을 확인한 뒤 다시 실행해 주세요.`;
-          if (result.outputPending) content += '\n서사시 저장은 완료했으며 디스코드 출력 목록은 다음 동기화 때 갱신됩니다.';
+          const result = await save(interaction.id, rows);
+          content = `메모 ${result.count}개를 반영했습니다.`;
+          dismiss = !result.outputPending;
+          if (result.outputPending) content += '\n서사시 저장은 완료했지만 디스코드 목록 갱신이 지연되고 있습니다. 같은 메모를 다시 추가하지 않아도 됩니다.';
         }
-      } catch {
-        content = '동기화를 마치지 못했습니다. 이미 저장된 메모는 유지됩니다. 잠시 후 다시 실행해 주세요.';
+      } catch (error) {
+        content = error instanceof HttpError && ['MEMO_CONFLICT', 'RECORD_CONFLICT'].includes(error.code)
+          ? '기존 메모와 중복되거나 동시에 변경되어 추가하지 못했습니다. 서사시에서 해당 날짜의 메모를 확인해 주세요.'
+          : '저장 결과를 확인하지 못했습니다. 서사시에서 메모를 확인한 뒤, 없으면 /memo로 다시 추가해 주세요.';
       } finally { if (acquired) await release(interaction.id).catch(() => {}); }
-      const response = await fetchImpl(`https://discord.com/api/v10/webhooks/${env('DISCORD_APPLICATION_ID')}/${interaction.token}/messages/@original`, {
+      const url = `https://discord.com/api/v10/webhooks/${env('DISCORD_APPLICATION_ID')}/${interaction.token}/messages/@original`;
+      const response = await fetchImpl(url, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
         signal: AbortSignal.timeout(10000), redirect: 'error',
       });
-      if (!response.ok) console.error('Discord command result delivery failed.');
+      if (!response.ok) { console.error('Discord command result delivery failed.'); return; }
+      if (dismiss) {
+        await sleep(5000);
+        const deleted = await fetchImpl(url, { method: 'DELETE', signal: AbortSignal.timeout(10000), redirect: 'error' });
+        if (!deleted.ok && deleted.status !== 404) console.error('Discord command result cleanup failed.');
+      }
     };
     waitUntil(task().catch(() => { console.error('Discord command failed.'); }));
     return Response.json({ type: 5, data: { flags: 64 } });

@@ -18,9 +18,9 @@ async function main() {
   const endpoint = `${origin.origin}/functions/v1/discord-command`;
   await rest.patch(Routes.currentApplication(), { body: { interactions_endpoint_url: endpoint } });
   const commands = await rest.get(Routes.applicationGuildCommands(app.id, guild));
-  const existing = commands.find(command => command.name === '적용') ?? commands.find(command => command.name === '메모동기화');
+  const existing = commands.find(command => command.name === 'memo') ?? commands.find(command => command.name === '적용') ?? commands.find(command => command.name === '메모동기화');
   const body = {
-    name: '적용', description: '이 채널에 작성한 내 메모를 서사시에 반영합니다.', type: 1,
+    name: 'memo', description: '입력창에서 메모를 추가합니다.', type: 1,
     default_member_permissions: '0', dm_permission: false,
   };
   const command = existing

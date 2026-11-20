@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
+import { saveDiscordModal } from '../supabase/functions/_shared/discord-modal.ts';
 import { parseDiscordMemo, prepareImport } from '../supabase/functions/_shared/discord-import.ts';
 
 const owner = '11111111-0000-0000-0000-000000000001', other = '11111111-0000-0000-0000-000000000002';
@@ -57,6 +58,30 @@ test('PostgreSQL: private imports, account isolation, atomic CAS, unique linking
   const merged = prepareImport(after, changedRows, message, created, '2026-11-18T02:00:00.000Z');
   await commit(after, merged);
   assert.equal((await read()).records.find(row => row.key === planned.key).value.done, true);
+
+  // Actual SQL commits modal entries, but the legacy source list never sees
+  // the synthetic receipt and therefore cannot infer a source deletion.
+  const modalId = '623456789012345678';
+  const modalEnv = key => ({ DISCORD_OWNER_USER_ID: owner, DISCORD_CHANNEL_ID: channel })[key];
+  const adapter = { rpc: async (name, args) => {
+    const entries = Object.entries(args);
+    try {
+      const result = await db.query(`select public.${name}(${entries.map(([key], i) => `${key} => $${i+1}`).join(',')}) as data`, entries.map(([,value]) => typeof value === 'object' ? JSON.stringify(value) : value));
+      return { data: result.rows[0].data, error: null };
+    } catch (error) { return { data: null, error: { message: error.message } }; }
+  } };
+  const modalRows = parseDiscordMemo('# 2026.11.20\n- [일상] modal only');
+  const flush = async () => Response.json({ pending: false });
+  await saveDiscordModal(modalEnv, adapter, flush, modalId, modalRows);
+  const sourceIds = (await db.query('select public.sesasi_discord_import_list($1,$2) as data', [owner, channel])).rows[0].data;
+  assert.equal(sourceIds.includes(modalId), false);
+  const saved = (await read()).records.find(row => row.value?.title === 'modal only');
+  assert.ok(saved);
+  await db.exec(`reset role; set role authenticated; select set_config('request.jwt.claim.sub','${owner}',false);`);
+  await db.query('select public.sesasi_record_save($1,$2,$3::jsonb,$4)', ['entries', saved.key, 'null', saved.revision]);
+  await db.exec('reset role; set role service_role;');
+  await saveDiscordModal(modalEnv, adapter, flush, modalId, modalRows);
+  assert.equal((await read()).records.find(row => row.key === saved.key).value, null);
 
   await db.exec('reset role; set role authenticated;');
   await assert.rejects(read(), /permission denied/);
