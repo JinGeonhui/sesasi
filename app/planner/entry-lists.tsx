@@ -1,31 +1,31 @@
 import { useState } from "react";
 import { ArrivalInfo } from "./transit-arrivals";
 import { eventHours, todoCategory, type CalendarEvent, type Todo, type TransitRoute } from "./data";
-import { memoRows } from "./discord-format";
+import { memoRows, memoStatus } from "./discord-format";
 
 type TodoActions = { edit: (todo: Todo) => void; insert: (todo: Todo) => void; toggle: (todo: Todo) => void; remove: (todo: Todo) => void };
 export function TodoList({ items, compact, itemName = "할 일", edit, insert, toggle, remove }: TodoActions & { items: Todo[]; compact?: boolean; itemName?: string }) {
   if (!items.length) return <p className="db-empty">표시할 {itemName === "메모" ? "메모가" : "할 일이"} 없어요.</p>;
   const rows = memoRows(items);
-  if (itemName === "메모") return <ul className="db-list db-todos">{rows.map(({ todo, marker }) =>
+  if (itemName === "메모") return <ul className="db-list db-todos">{rows.map(({ todo, marker, status }) =>
     <li key={todo.id} className="db-memo-row">
       <span className="db-memo-marker">{marker}</span>
-      <span className="db-category-label">{todo.done ? <s>[{todoCategory(todo)}]</s> : <>[{todoCategory(todo)}]</>}</span>
+      <span className="db-category-label">{status === "completed" ? <s>[{todoCategory(todo)}]</s> : <>[{todoCategory(todo)}]</>}</span>
       <button className="db-entry" onClick={() => edit(todo)}>
-        <strong className={todo.done ? "done" : ""}>{todo.done ? <s>{todo.title}</s> : todo.title}</strong>
+        <strong className={status === "completed" ? "done" : ""}>{status === "completed" ? <s>{todo.title}</s> : todo.title}</strong>
       </button>
-      <label className="db-memo-complete">
+      {status !== "recorded" ? <label className="db-memo-complete">
         <input type="checkbox" checked={todo.done} aria-label={`${todo.title} 완료`} onChange={() => toggle(todo)}/>
-      </label>
+      </label> : <span className="db-memo-complete" aria-hidden="true"/>}
       <button type="button" className="db-memo-delete" aria-label={`${todo.title} 메모 삭제`} onClick={() => remove(todo)}>삭제</button>
     </li>
   )}</ul>;
-  return <ul className="db-list db-todos">{rows.map(({ todo, marker }) =>
+  return <ul className="db-list db-todos">{rows.map(({ todo, marker, status }) =>
     <li key={todo.id} className={todo.inserted ? "db-inserted" : undefined}>
-      <input type="checkbox" checked={todo.done} aria-label={`${todo.title} 완료`} onChange={() => toggle(todo)}/>
+      {status !== "recorded" ? <input type="checkbox" checked={todo.done} aria-label={`${todo.title} 완료`} onChange={() => toggle(todo)}/> : <span className="db-todo-check-space" aria-hidden="true"/>}
       <button className="db-entry" onClick={() => edit(todo)}>
-        <strong><span className="db-memo-marker">{marker} </span><span className={todo.done ? "done" : ""}>{todo.done ? <s>{todo.title}</s> : todo.title}</span></strong>
-        <span className="db-todo-meta"><span className="db-category-label">{todo.done ? <s>[{todoCategory(todo)}]</s> : <>[{todoCategory(todo)}]</>}</span>
+        <strong><span className="db-memo-marker">{marker} </span><span className={status === "completed" ? "done" : ""}>{status === "completed" ? <s>{todo.title}</s> : todo.title}</span></strong>
+        <span className="db-todo-meta"><span className="db-category-label">{status === "completed" ? <s>[{todoCategory(todo)}]</s> : <>[{todoCategory(todo)}]</>}</span>
           {(!compact || todo.inserted) && <small>{[!compact && todo.date, todo.inserted && "끼워 넣은 할 일"].filter(Boolean).join(" · ")}</small>}
         </span>
       </button>
@@ -52,11 +52,11 @@ export function TodosView({ items, categories, selected, onSelect, ...actions }:
 }) {
   const [status, setStatus] = useState("전체");
   const [grouped, setGrouped] = useState(true);
-  const shown = items.filter(todo => (!selected || todoCategory(todo) === selected) && (status === "전체" || todo.done === (status === "완료")));
+  const shown = items.filter(todo => (!selected || todoCategory(todo) === selected) && (status === "전체" || memoStatus(todo) === (status === "미완료" ? "pending" : status === "완료" ? "completed" : "recorded")));
   const groups = [...new Set(shown.map(todoCategory))].sort((a,b) => a.localeCompare(b, "ko"));
   return <section aria-label="할 일 목록" className="db-list-panel">
     <CategoryFilter categories={categories} selected={selected} onSelect={onSelect}/>
-    <div className="db-list-tools"><div className="db-segments">{["전체", "미완료", "완료"].map(s =>
+    <div className="db-list-tools"><div className="db-segments">{["전체", "미완료", "완료", "수행 기록"].map(s =>
       <button key={s} aria-pressed={s === status} onClick={() => setStatus(s)}>{s}</button>)}</div>
       <label><select aria-label="할 일 보기 방식" value={grouped ? "category" : "date"} onChange={e => setGrouped(e.target.value === "category")}>
         <option value="date">날짜순 보기</option><option value="category">카테고리별 보기</option>

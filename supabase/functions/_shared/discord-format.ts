@@ -19,19 +19,27 @@ export function memoCreatedOn(todo: Todo) {
   return memoDay(new Date(stamp));
 }
 
+export function memoStatus(todo: Todo): "pending" | "completed" | "recorded" {
+  const created = memoCreatedOn(todo);
+  // Same-day (and backfilled) notes describe work already performed. Legacy
+  // checkbox values must not turn those records into struck-through tasks.
+  if (!created || created >= todo.date) return "recorded";
+  return todo.done ? "completed" : "pending";
+}
+
 // Use the same markers in the app and Discord. The creation date, rather than
 // the day the list is viewed, determines whether a memo was planned in advance.
 export function memoRows<T extends Todo>(todos: T[]) {
   const numbers = new Map<string, number>();
   return [...todos].sort(compareTodos).map(todo => {
-    const created = memoCreatedOn(todo);
+    const status = memoStatus(todo);
     let marker = "-";
-    if (!todo.done && created && created < todo.date) {
+    if (status === "pending") {
       const number = (numbers.get(todo.date) ?? 0) + 1;
       numbers.set(todo.date, number);
       marker = `${number}.`;
     }
-    return { todo, marker };
+    return { todo, marker, status };
   });
 }
 
@@ -40,9 +48,9 @@ function plain(value: string) {
 }
 
 export function discordLines(day: string, todos: Todo[]) {
-  return memoRows(todos.filter(todo => todo.date === day)).map(({ todo, marker }) => {
+  return memoRows(todos.filter(todo => todo.date === day)).map(({ todo, marker, status }) => {
     const text = `[${plain(todoCategory(todo))}] ${plain(todo.title)}`;
-    if (todo.done) return `- ~~${text}~~`;
+    if (status === "completed") return `- ~~${text}~~`;
     return `${marker} ${text}`;
   });
 }

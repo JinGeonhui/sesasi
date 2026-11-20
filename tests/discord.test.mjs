@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { discordLines, discordMessages, memoCreatedOn, memoDay, memoRows } from "../app/planner/discord-format.ts";
+import { discordLines, discordMessages, memoCreatedOn, memoDay, memoRows, memoStatus } from "../app/planner/discord-format.ts";
 import { createDiscordService, validateSnapshot, webhookURL } from "../discord/service.mjs";
 import { createDiscordServer } from "../discord/server.mjs";
 
@@ -37,7 +37,23 @@ test("미리 쓴 메모만 번호를 붙이고 당일 메모는 -로 표시한�
 test("완료 시 번호 대신 -와 취소선을 쓰고 해제하면 번호로 복원한다", () => {
   assert.equal(discordMessages(day, [memo({ done: true })])[0], "# 2026.11.18\n- ~~[면허] 오후 4시 10분 장내 기능 시험~~");
   assert.equal(discordLines(day, [memo({ done: false })])[0], "1. [면허] 오후 4시 10분 장내 기능 시험");
-  assert.match(discordLines(day, [memo({ done: true, createdOn: day })])[0], /^- ~~/);
+  assert.equal(discordLines(day, [memo({ done: true, createdOn: day })])[0], '- [면허] 오후 4시 10분 장내 기능 시험');
+});
+test("당일 수행 기록은 이전 체크 값과 무관하게 체크 대상·취소선·남은 할 일에서 제외한다", () => {
+  const recorded = memo({ createdOn: day });
+  const legacyChecked = { ...recorded, done: true };
+  for (const todo of [recorded, legacyChecked]) {
+    assert.equal(memoStatus(todo), 'recorded');
+    assert.deepEqual(memoRows([todo]).map(({ marker, status }) => ({ marker, status })), [{ marker: '-', status: 'recorded' }]);
+    assert.equal(discordLines(day, [todo])[0], '- [면허] 오후 4시 10분 장내 기능 시험');
+  }
+  const rows = [memo(), memo({ id: 'planned-done', done: true }), recorded, legacyChecked];
+  assert.equal(rows.filter(todo => memoStatus(todo) === 'pending').length, 1);
+  assert.equal(rows.filter(todo => memoStatus(todo) === 'completed').length, 1);
+  assert.equal(rows.filter(todo => memoStatus(todo) === 'recorded').length, 2);
+  // Viewing a planned memo on its target date never changes its original type.
+  assert.equal(memoStatus(memo()), 'pending');
+  assert.equal(memoStatus(memo({ done: true })), 'completed');
 });
 test("작성일은 대상 날짜와 비교하고 과거 데이터의 정렬 시각도 복원한다", () => {
   const stamp = new Date(2026, 10, 17, 12).getTime();

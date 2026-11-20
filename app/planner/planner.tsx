@@ -14,6 +14,7 @@ import FeatureLink from "./feature-link";
 import { Icon } from "./icons";
 import { DiscordMemoStatus } from "./discord-sync";
 import DeleteMemoDialog from "./delete-memo-dialog";
+import { memoStatus } from "./discord-format";
 
 type Tab = "overview" | "history" | "categories" | Kind;
 const tabs: Record<Tab, string> = { overview: "홈", event: "캘린더", todo: "할 일", route: "교통 노선", note: "작업 메모", history: "기록", categories: "카테고리 관리" };
@@ -88,7 +89,7 @@ export default function Planner({ tab }: { tab: Tab }) {
     await mutate(current => saveEntry(entry, remove, customCategory, current));
   }
   async function toggle(entry: Entry) {
-    if (entry.kind !== "todo") return;
+    if (entry.kind !== "todo" || memoStatus(entry) === "recorded") return;
     try { await save({ ...entry, done: !entry.done }); }
     catch (err) { setError((err as Error).message); }
   }
@@ -151,7 +152,7 @@ export default function Planner({ tab }: { tab: Tab }) {
             <WeatherCard/>
             <nav className="db-shortcuts" aria-label="작업 바로가기">{(["event", "todo", "route", "note"] as const).map(k => <FeatureLink key={k} href={tabPaths[k]}
               icon={k === "event" ? "calendar" : k} title={tabs[k]}
-              description={k === "event" ? `등록한 일정 ${events.length}개` : k === "todo" ? `남은 할 일 ${todos.filter(t => !t.done).length}개` : k === "route" ? `저장한 노선 ${routes.length}개` : `작성한 메모 ${notes.length}개`}/>)}</nav>
+              description={k === "event" ? `등록한 일정 ${events.length}개` : k === "todo" ? `남은 할 일 ${todos.filter(t => memoStatus(t) === "pending").length}개` : k === "route" ? `저장한 노선 ${routes.length}개` : `작성한 메모 ${notes.length}개`}/>)}</nav>
           </aside>}
         </div>}
         {tab === "event" && <><Calendar day={day} today={today} entries={events} onSelect={d => { setDay(d); setEventFilter("선택한 날짜"); }}/><div className="db-segments">{["선택한 날짜", "장기 일정"].map(f => <button key={f} aria-pressed={eventFilter === f} onClick={() => setEventFilter(f)}>{f}</button>)}</div><EventAgenda title={eventFilter === "장기 일정" ? "장기 일정" : "일정"} day={eventFilter === "장기 일정" ? undefined : day} events={eventFilter === "장기 일정" ? longEvents : pickedEvents} edit={edit} add={eventFilter === "장기 일정" ? undefined : () => setEditor({kind: "event"})}/></>}

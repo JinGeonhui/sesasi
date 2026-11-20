@@ -182,6 +182,8 @@
 .db-memo-row > .db-category-label { justify-self: start; }
 .db-discord-memo-status { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; color: var(--muted); font-size: 12px; }
 .db-memo-complete { display: grid; place-items: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.db-memo-complete[aria-hidden] { cursor: default; }
+.db-todo-check-space { width: 22px; height: 22px; flex: none; }
 .db-memo-add { display: grid; place-items: center; flex: none; box-sizing: border-box; width: 44px; height: 44px; padding: 6px; border-radius: calc(var(--radius) + 6px); background-color: var(--accent-soft); background-clip: content-box; color: var(--action); }
 .db-memo-add svg { width: 20px; height: 20px; }
 @media (hover: hover) { .db-memo-add:hover { background-color: #dce9ff; } }
