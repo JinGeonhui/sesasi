@@ -34,10 +34,11 @@ export function validateSnapshot(value) {
       || typeof todo.title !== "string" || !todo.title.trim() || todo.title.length > 120
       || typeof todo.category !== "string" || todo.category.length > 40
       || typeof todo.order !== "string" || todo.order.length > 2000
-      || (todo.createdOn !== "" && !validDay(todo.createdOn))) fail("INVALID_MEMOS");
+      || (todo.createdOn !== "" && !validDay(todo.createdOn))
+      || (todo.memoType !== undefined && todo.memoType !== "planned" && todo.memoType !== "recorded")) fail("INVALID_MEMOS");
     ids.add(todo.id);
     return { id: todo.id, kind: "todo", date: todo.date, done: todo.done, title: todo.title,
-      category: todo.category, order: todo.order, createdOn: todo.createdOn };
+      category: todo.category, order: todo.order, createdOn: todo.createdOn, ...(todo.memoType ? { memoType: todo.memoType } : {}) };
   });
 }
 

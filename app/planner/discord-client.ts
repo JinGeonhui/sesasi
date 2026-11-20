@@ -64,7 +64,7 @@ export async function discordTodos(): Promise<Todo[]> {
   return entries.filter((entry): entry is Todo => entry.kind === "todo").map((entry): Todo => {
     const todo = entry;
     return { id: todo.id, kind: "todo", date: todo.date, title: todo.title, done: todo.done,
-      category: todoCategory(todo), order: todoOrder(todo), createdOn: memoCreatedOn(todo) };
+      category: todoCategory(todo), order: todoOrder(todo), createdOn: memoCreatedOn(todo), memoType: todo.memoType };
   }).sort((a, b) => a.id.localeCompare(b.id));
 }
 

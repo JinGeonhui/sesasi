@@ -36,11 +36,11 @@ Deno.serve(protectedHandler(env, authenticate, async (req, user) => {
     if (submitted.sourceId === user.id) {
       const records = await db.rpc('sesasi_discord_records', { p_user: user.id });
       if (records.error || !records.data) throw new HttpError(503, 'STATE_UNAVAILABLE');
-      const { entries, categories } = records.data as { entries: { id: string; kind: string; date: string; title: string; done: boolean; category?: string; categoryVersion?: string; order?: string; createdOn?: string }[]; categories: Record<string, string> };
+      const { entries, categories } = records.data as { entries: { id: string; kind: string; date: string; title: string; done: boolean; category?: string; categoryVersion?: string; order?: string; createdOn?: string; memoType?: "planned" | "recorded" }[]; categories: Record<string, string> };
       input = validateSubmission({ sourceId: user.id, todos: entries.filter(entry => entry.kind === 'todo').map(todo => ({
         id: todo.id, kind: 'todo', date: todo.date, title: todo.title, done: todo.done,
         category: todo.category && categories[todo.category] === (todo.categoryVersion ?? 'legacy') ? todo.category : '미분류',
-        order: todo.order ?? `0-${todo.id}`, createdOn: memoCreatedOn({ ...todo, kind: 'todo' }),
+        order: todo.order ?? `0-${todo.id}`, createdOn: memoCreatedOn(todo), memoType: todo.memoType,
       })) });
       // A fresh device must not erase messages before the original browser imports.
       if (state.sourceId && state.sourceId !== user.id && !input.todos.length) return Response.json(await discordStatus(state, input.sourceId, true, since));

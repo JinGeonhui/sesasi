@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { dateKey, localDate, shift, kindNames, newTodoOrder, todoOrder, todoCategory, uncategorized, type Todo, type Entry, type Kind } from "./data";
 import { Icon } from "./icons";
 import RouteEditor from "./route-editor";
-import { memoCreatedOn, memoDay } from "./discord-format";
+import { memoCreatedOn, memoDay, memoType, type MemoType } from "./discord-format";
 
 type Props = {
   kind: Kind;
@@ -29,6 +29,9 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
   const event = entry?.kind === "event" ? entry : undefined;
   const todo = entry?.kind === "todo" ? entry : undefined;
   const sourceTodo = todo ?? after;
+  const [chosenMemoType, setChosenMemoType] = useState<MemoType | null>(todo?.memoType ?? null);
+  const createdOn = todo ? memoCreatedOn(todo) : memoDay();
+  const effectiveMemoType = chosenMemoType ?? memoType({ date, createdOn });
   const [category, setCategory] = useState<string | null>(sourceTodo ? todoCategory(sourceTodo) : selectedCategory ?? uncategorized);
   const [allDay, setAllDay] = useState(!event?.time);
   const multiDay = longTerm && kind === "event" && !entry;
@@ -76,11 +79,12 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
         const name = category ?? field("customCategory");
         if (!name) { setError("새 카테고리 이름을 입력해 주세요."); return; }
         commit({
-        ...base, kind, date, done: todo?.done ?? false,
+        ...base, kind, date, done: effectiveMemoType === "planned" && todo && memoType(todo) === "planned" ? todo.done : false,
+        memoType: effectiveMemoType,
         category: name,
         order: todo ? todoOrder(todo) : newTodoOrder(base.id, after),
         inserted: todo?.inserted ?? Boolean(after),
-        createdOn: todo ? memoCreatedOn(todo) : memoDay(),
+        createdOn,
         });
         break;
       }
@@ -100,6 +104,15 @@ function GeneralEntryEditor({ kind, kindLabel, day, longTerm, entry, after, cate
         {!allDay && <div className="db-fields"><label>시작 시간<input type="time" name="startTime" required defaultValue={event?.time || "09:00"}/></label>
           <label>종료 시간<input type="time" name="endTime" required={!event?.time || Boolean(event.endTime)} defaultValue={event?.time ? event.endTime ?? "" : "10:00"}/></label></div>}
       </>}
+      {kind === "todo" && <fieldset className="db-category-field">
+        <legend>메모 유형</legend>
+        <div className="db-category-options">
+          <button type="button" aria-pressed={effectiveMemoType === "planned"} onClick={() => setChosenMemoType("planned")}>계획</button>
+          <button type="button" aria-pressed={effectiveMemoType === "recorded"} onClick={() => setChosenMemoType("recorded")}>수행 기록</button>
+        </div>
+        <p className="db-field-hint">{effectiveMemoType === "planned" ? "앞으로 할 일이에요. 번호로 표시하고 완료하면 체크해요." : "이미 수행한 일이에요. -로 표시하고 완료 체크는 하지 않아요."}</p>
+        <p className="db-field-hint">날짜에 따라 기본 선택돼요. 새벽에 적는 오늘의 할 일은 ‘계획’을 선택해 주세요.</p>
+      </fieldset>}
       {kind === "todo" && <fieldset className="db-category-field">
         <legend>카테고리</legend>
         <div className="db-category-options">

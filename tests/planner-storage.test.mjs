@@ -97,3 +97,17 @@ test('deleting a selected date memo preserves other dates and failed deletion ke
   assert.deepEqual(reopened.entries.map(item => [item.id, item.date]), [['memo1', '2026-11-19']]);
   assert.ok(events.includes('sesasi-planner-change'));
 });
+
+test('explicit memo type survives server reload, completion and date moves', async () => {
+  fixture();
+  const planned = { ...memo, createdOn: memo.date, memoType: 'planned' };
+  await saveEntry(planned, false, false, await loadPlanner());
+  let snapshot = await loadPlanner();
+  assert.equal(snapshot.entries[0].memoType, 'planned');
+  await saveEntry({ ...snapshot.entries[0], done: true, date: '2026-11-18' }, false, false, snapshot);
+  snapshot = await loadPlanner();
+  assert.equal(snapshot.entries[0].memoType, 'planned');
+  assert.equal(snapshot.entries[0].done, true);
+  await saveEntry({ ...snapshot.entries[0], memoType: 'recorded', done: false }, false, false, snapshot);
+  assert.equal((await loadPlanner()).entries[0].memoType, 'recorded');
+});

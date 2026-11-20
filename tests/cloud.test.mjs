@@ -84,3 +84,13 @@ test('요청 제한 재시도 시각과 날짜 범위를 지키고 상태 저장
   await assert.rejects(deliverDiscord(state, webhook, '2026-11-19', async () => { throw new Error('lost lease'); }, async () => { calls++; return Response.json({}); }, () => 1000));
   assert.equal(calls, 1);
 });
+
+test('선택한 메모 유형을 서버 전송 검증에서 보존하고 잘못된 유형은 거부한다', () => {
+  for (const memoType of ['planned', 'recorded']) {
+    const todo = { ...memo, createdOn: memo.date, memoType };
+    const result = validateSubmission({ sourceId: 'source-1234567890123456', todos: [todo] });
+    assert.equal(result.todos[0].memoType, memoType);
+    assert.equal(discordMessages(memo.date, result.todos)[0], `# 2026.11.19\n${memoType === 'planned' ? '1.' : '-'} [면허] 면허 시험`);
+  }
+  for (const memoType of ['unknown', null, 1]) assert.throws(() => validateSubmission({ sourceId: 'source-1234567890123456', todos: [{ ...memo, memoType }] }));
+});

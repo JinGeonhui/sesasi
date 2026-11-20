@@ -13,9 +13,9 @@ export function validateSubmission(value: unknown): { sourceId: string; todos: T
   if (!obj || typeof obj.sourceId !== 'string' || !/^[a-zA-Z0-9-]{16,80}$/.test(obj.sourceId) || !Array.isArray(obj.todos) || obj.todos.length > 5000) throw new HttpError(400, 'INVALID_MEMOS');
   const ids = new Set<string>();
   const todos: Todo[] = obj.todos.map(todo => {
-    if (!todo || typeof todo.id !== 'string' || !todo.id || todo.id.length > 100 || ids.has(todo.id) || todo.kind !== 'todo' || !validDay(todo.date) || typeof todo.done !== 'boolean' || typeof todo.title !== 'string' || !todo.title.trim() || todo.title.length > 120 || typeof todo.category !== 'string' || todo.category.length > 40 || typeof todo.order !== 'string' || todo.order.length > 2000 || (todo.createdOn !== '' && !validDay(todo.createdOn))) throw new HttpError(400, 'INVALID_MEMOS');
+    if (!todo || typeof todo.id !== 'string' || !todo.id || todo.id.length > 100 || ids.has(todo.id) || todo.kind !== 'todo' || !validDay(todo.date) || typeof todo.done !== 'boolean' || typeof todo.title !== 'string' || !todo.title.trim() || todo.title.length > 120 || typeof todo.category !== 'string' || todo.category.length > 40 || typeof todo.order !== 'string' || todo.order.length > 2000 || (todo.createdOn !== '' && !validDay(todo.createdOn)) || (todo.memoType !== undefined && todo.memoType !== 'planned' && todo.memoType !== 'recorded')) throw new HttpError(400, 'INVALID_MEMOS');
     ids.add(todo.id);
-    return { id: todo.id, kind: 'todo', date: todo.date, done: todo.done, title: todo.title, category: todo.category, order: todo.order, createdOn: todo.createdOn };
+    return { id: todo.id, kind: 'todo', date: todo.date, done: todo.done, title: todo.title, category: todo.category, order: todo.order, createdOn: todo.createdOn, ...(todo.memoType ? { memoType: todo.memoType } : {}) };
   });
   return { sourceId: obj.sourceId, todos };
 }

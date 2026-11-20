@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { discordLines, discordMessages, memoCreatedOn, memoDay, memoRows, memoStatus } from "../app/planner/discord-format.ts";
+import { discordLines, discordMessages, memoCreatedOn, memoDay, memoRows, memoStatus, memoType } from "../app/planner/discord-format.ts";
 import { createDiscordService, validateSnapshot, webhookURL } from "../discord/service.mjs";
 import { createDiscordServer } from "../discord/server.mjs";
 
@@ -202,4 +202,22 @@ test("웹 API로 연결을 설정할 수 없고 허용 Origin의 JSON 메모만 
   const value = await response.text(); assert.equal(value.includes("x".repeat(68)), false);
   await f.service.flush();
   assert.equal(f.calls.length, 1);
+});
+
+test("직접 고른 유형은 작성일보다 우선하고 계획 완료·해제에도 유지된다", () => {
+  const planned = memo({ createdOn: day, memoType: "planned" });
+  assert.equal(memoType(memo({ createdOn: day })), "recorded");
+  assert.equal(memoType(memo()), "planned");
+  assert.deepEqual(memoRows([planned]).map(({marker, status}) => [marker, status]), [["1.", "pending"]]);
+  assert.match(discordLines(day, [planned])[0], /^1\. /);
+  assert.match(discordLines(day, [{ ...planned, done: true }])[0], /^- ~~.*~~$/);
+  assert.match(discordLines(day, [{ ...planned, done: false }])[0], /^1\. /);
+  assert.equal(memoStatus({ ...planned, date: "2026-11-16" }), "pending");
+  const recorded = memo({ memoType: "recorded", done: true });
+  assert.equal(memoStatus(recorded), "recorded");
+  assert.match(discordLines(day, [recorded])[0], /^- \[/);
+  assert.equal(memoType({ ...recorded, date: "2026-11-20" }), "recorded");
+  assert.equal(validateSnapshot([planned])[0].memoType, "planned");
+  assert.equal(validateSnapshot([recorded])[0].memoType, "recorded");
+  for (const memoType of ["other", null, 1]) assert.throws(() => validateSnapshot([memo({ memoType })]));
 });

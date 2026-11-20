@@ -4,7 +4,7 @@ export type Kind = "event" | "todo" | "route" | "note";
 type Base = { id: string; title: string };
 export type Entry = Base & (
   | { kind: "event"; date: string; end: string; time: string; endTime?: string }
-  | { kind: "todo"; date: string; done: boolean; category?: string; categoryVersion?: string; order?: string; inserted?: boolean; createdOn?: string }
+  | { kind: "todo"; date: string; done: boolean; category?: string; categoryVersion?: string; order?: string; inserted?: boolean; createdOn?: string; memoType?: "planned" | "recorded" }
   | { kind: "route"; mode: "버스" | "지하철"; from: string; to: string; alias?: string; transit?: TransitSelection }
   | { kind: "note"; date: string; body: string }
 );

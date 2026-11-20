@@ -1,4 +1,5 @@
-export type Todo = { id: string; kind: "todo"; date: string; title: string; done: boolean; category?: string; order?: string; createdOn?: string };
+export type MemoType = "planned" | "recorded";
+export type Todo = { id: string; kind: "todo"; date: string; title: string; done: boolean; category?: string; order?: string; createdOn?: string; memoType?: MemoType };
 const todoCategory = (todo: Todo) => todo.category?.trim() || "미분류";
 function compareTodos(a: Todo, b: Todo) {
   const left = a.order ?? `0-${a.id}`, right = b.order ?? `0-${b.id}`;
@@ -9,7 +10,7 @@ export function memoDay(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
-export function memoCreatedOn(todo: Todo) {
+export function memoCreatedOn(todo: Pick<Todo, "createdOn" | "order">) {
   if (todo.createdOn !== undefined) return todo.createdOn;
   // Older rows already carry their creation time in their ordering key.
   const part = todo.order?.split("/").at(-1) ?? "";
@@ -19,16 +20,19 @@ export function memoCreatedOn(todo: Todo) {
   return memoDay(new Date(stamp));
 }
 
-export function memoStatus(todo: Todo): "pending" | "completed" | "recorded" {
+export function memoType(todo: Pick<Todo, "date" | "createdOn" | "order" | "memoType">): MemoType {
+  if (todo.memoType === "planned" || todo.memoType === "recorded") return todo.memoType;
   const created = memoCreatedOn(todo);
-  // Same-day (and backfilled) notes describe work already performed. Legacy
-  // checkbox values must not turn those records into struck-through tasks.
-  if (!created || created >= todo.date) return "recorded";
+  return created && created < todo.date ? "planned" : "recorded";
+}
+
+export function memoStatus(todo: Todo): "pending" | "completed" | "recorded" {
+  if (memoType(todo) === "recorded") return "recorded";
   return todo.done ? "completed" : "pending";
 }
 
-// Use the same markers in the app and Discord. The creation date, rather than
-// the day the list is viewed, determines whether a memo was planned in advance.
+// Explicit choices persist across date changes. Legacy memos retain their
+// creation-date classification, independent of the day the list is viewed.
 export function memoRows<T extends Todo>(todos: T[]) {
   const numbers = new Map<string, number>();
   return [...todos].sort(compareTodos).map(todo => {
