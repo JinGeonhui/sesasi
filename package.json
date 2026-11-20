@@ -13,11 +13,12 @@
     "start": "next start",
     "lint": "eslint",
     "test:cloud": "node --experimental-strip-types --test tests/cloud.test.mjs",
-    "check:cloud": "deno check supabase/functions/weather/index.ts supabase/functions/transit/index.ts supabase/functions/discord-sync/index.ts supabase/functions/discord-import/index.ts",
-    "supabase:deploy": "supabase functions deploy weather transit discord-sync discord-import --use-api --yes",
+    "check:cloud": "deno check supabase/functions/weather/index.ts supabase/functions/transit/index.ts supabase/functions/discord-sync/index.ts supabase/functions/discord-import/index.ts supabase/functions/discord-command/index.ts",
+    "supabase:deploy": "supabase functions deploy weather transit discord-sync discord-import discord-command --use-api --yes",
     "test:storage": "node --experimental-strip-types --test tests/login.test.mjs tests/planner-storage.test.mjs",
     "discord:bot": "node --env-file-if-exists=.env.discord-bot.local discord/bot.mjs",
-    "test:discord-import": "node --experimental-strip-types --test tests/discord-import.test.mjs tests/discord-bridge.test.mjs tests/discord-import-db.test.mjs"
+    "test:discord-import": "node --experimental-strip-types --test tests/discord-import.test.mjs tests/discord-bridge.test.mjs tests/discord-import-db.test.mjs tests/discord-command.test.mjs",
+    "discord:command": "node --env-file=.env.discord-bot.local discord/register-command.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
