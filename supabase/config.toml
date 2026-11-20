@@ -30,3 +30,9 @@ entrypoint = "./functions/transit/index.ts"
 verify_jwt = true
 import_map = "./functions/deno.json"
 entrypoint = "./functions/discord-sync/index.ts"
+
+# Server-to-server only; discord-import verifies its dedicated bridge secret.
+[functions.discord-import]
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/discord-import/index.ts"

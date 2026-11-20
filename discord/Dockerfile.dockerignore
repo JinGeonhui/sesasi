@@ -1,0 +1,6 @@
+**
+!package.json
+!package-lock.json
+!discord
+!discord/bot.mjs
+!discord/bridge.mjs
