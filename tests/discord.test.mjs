@@ -17,7 +17,7 @@ test("앱과 디스코드가 미리 작성·당일 추가·완료에 같은 목�
   const todos = [memo({ id: 'first', order: '1' }), memo({ id: 'second', order: '2' }),
     memo({ id: 'extra', order: '3', createdOn: day }), memo({ id: 'done', order: '4', done: true })];
   assert.deepEqual(memoRows(todos).map(row => row.marker), ['1.', '2.', '-', '-']);
-  assert.deepEqual(discordLines(day, todos), ['1. [면허] 오후 4시 10분 장내 기능 시험', '2. [면허] 오후 4시 10분 장내 기능 시험',
+  assert.deepEqual(discordLines(day, todos), ['1. [면허] 오후 4시 10분 장내 기능 시험', '2. [면허] 오후 4시 10분 장내 기능 시험', '',
     '- [면허] 오후 4시 10분 장내 기능 시험', '- ~~[면허] 오후 4시 10분 장내 기능 시험~~']);
   const completed = todos.map(todo => todo.id === 'first' ? { ...todo, done: true } : todo);
   assert.deepEqual(memoRows(completed).map(row => row.marker), ['-', '1.', '-', '-']);
@@ -32,12 +32,38 @@ test("당일 추가 여부는 기기 시간대가 아닌 한국 날짜를 기준
 test("미리 쓴 메모만 번호를 붙이고 당일 메모는 -로 표시한다", () => {
   assert.deepEqual(discordLines(day, [memo(), memo({ id: "two", order: "2", title: "82뽑 픽뚫 블레이드", category: "게임", createdOn: day }),
     memo({ id: "three", order: "3", title: "발표 확인", category: "대학" })]),
-  ["1. [면허] 오후 4시 10분 장내 기능 시험", "- [게임] 82뽑 픽뚫 블레이드", "2. [대학] 발표 확인"]);
+  ["1. [면허] 오후 4시 10분 장내 기능 시험", "2. [대학] 발표 확인", "", "- [게임] 82뽑 픽뚫 블레이드"]);
 });
 test("완료 시 번호 대신 -와 취소선을 쓰고 해제하면 번호로 복원한다", () => {
   assert.equal(discordMessages(day, [memo({ done: true })])[0], "# 2026.11.18\n- ~~[면허] 오후 4시 10분 장내 기능 시험~~");
   assert.equal(discordLines(day, [memo({ done: false })])[0], "1. [면허] 오후 4시 10분 장내 기능 시험");
   assert.equal(discordLines(day, [memo({ done: true, createdOn: day })])[0], '- [면허] 오후 4시 10분 장내 기능 시험');
+});
+test("계획 3개 중 2번 완료와 수행 기록 2개는 빈 줄 아래로 모으고 해제하면 번호를 복원한다", () => {
+  const todos = [
+    memo({ id: 'p1', order: '1', title: '계획 A', memoType: 'planned' }),
+    memo({ id: 'p2', order: '2', title: '계획 B', memoType: 'planned', done: true }),
+    memo({ id: 'p3', order: '3', title: '계획 C', memoType: 'planned' }),
+    memo({ id: 'r1', order: '4', title: '수행 D', memoType: 'recorded' }),
+    memo({ id: 'r2', order: '5', title: '수행 E', memoType: 'recorded' }),
+  ];
+  const original = structuredClone(todos);
+  assert.deepEqual(discordMessages(day, todos), ['# 2026.11.18\n1. [면허] 계획 A\n2. [면허] 계획 C\n\n- ~~[면허] 계획 B~~\n- [면허] 수행 D\n- [면허] 수행 E']);
+  assert.deepEqual(todos, original);
+  assert.deepEqual(discordLines(day, todos.map(todo => todo.id === 'p2' ? { ...todo, done: false } : todo)),
+    ['1. [면허] 계획 A', '2. [면허] 계획 B', '3. [면허] 계획 C', '', '- [면허] 수행 D', '- [면허] 수행 E']);
+  assert.equal(discordMessages(day, todos.filter(todo => todo.memoType === 'recorded'))[0].includes('\n\n'), false);
+});
+test("목록 분리의 빈 줄도 2000자 한도에 포함하고 메시지 경계에는 빈 문단을 남기지 않는다", () => {
+  const planned = Array.from({ length: 30 }, (_, i) => memo({ id: `p${i}`, order: String(i).padStart(3, '0'), title: '가'.repeat(120), memoType: 'planned' }));
+  const recorded = Array.from({ length: 30 }, (_, i) => memo({ id: `r${i}`, order: String(i + 30), title: '나'.repeat(120), memoType: 'recorded' }));
+  for (let count = 1; count <= planned.length; count++) {
+    const parts = discordMessages(day, [...planned.slice(0, count), ...recorded]);
+    assert.ok(parts.every(part => part.length <= 2000 && !part.endsWith('\n') && !part.startsWith('# 2026.11.18\n\n')));
+    const lines = parts.flatMap(part => part.split('\n').slice(1)).filter(Boolean);
+    assert.equal(lines.length, count + recorded.length);
+    for (const part of parts) if (/\n\d+\. /.test(part) && /\n- /.test(part)) assert.ok(part.includes('\n\n- '));
+  }
 });
 test("당일 수행 기록은 이전 체크 값과 무관하게 체크 대상·취소선·남은 할 일에서 제외한다", () => {
   const recorded = memo({ createdOn: day });

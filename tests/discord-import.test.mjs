@@ -48,8 +48,10 @@ test('creates explicit types, categories and Korean creation date; repeat delive
   assert.equal(entry(snapshot, 2).value.memoType, 'planned');
   assert.equal(prepareImport(snapshot, parseDiscordMemo(content), source, created, created), null);
   const lines = discordLines('2026-11-18', snapshot.records.filter(row => row.collection === 'entries').map(row => row.value));
-  assert.ok(lines[0].startsWith('- ~~[면허]'));
-  assert.ok(lines[0].includes('95점, 합격'));
+  assert.ok(lines[0].startsWith('1. [작업]'));
+  assert.equal(lines[1], '');
+  assert.ok(lines[2].startsWith('- ~~[면허]'));
+  assert.ok(lines[2].includes('95점, 합격'));
 });
 test('completion and plain text edits retain the same entry IDs', () => {
   const snapshot = setup();

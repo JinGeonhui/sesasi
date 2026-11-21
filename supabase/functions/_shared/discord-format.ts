@@ -52,11 +52,17 @@ function plain(value: string) {
 }
 
 export function discordLines(day: string, todos: Todo[]) {
-  return memoRows(todos.filter(todo => todo.date === day)).map(({ todo, marker, status }) => {
+  const rows = memoRows(todos.filter(todo => todo.date === day));
+  // Discord can continue an ordered list across adjacent '-' rows. Keep the
+  // two list types in separate paragraphs, preserving order within each group.
+  const pending = rows.filter(row => row.status === "pending");
+  const recorded = rows.filter(row => row.status !== "pending");
+  const line = ({ todo, marker, status }: (typeof rows)[number]) => {
     const text = `[${plain(todoCategory(todo))}] ${plain(todo.title)}`;
     if (status === "completed") return `- ~~${text}~~`;
     return `${marker} ${text}`;
-  });
+  };
+  return [...pending.map(line), ...(pending.length && recorded.length ? [""] : []), ...recorded.map(line)];
 }
 
 export function discordMessages(day: string, todos: Todo[]) {
@@ -65,10 +71,14 @@ export function discordMessages(day: string, todos: Todo[]) {
   const heading = `# ${day.replaceAll("-", ".")}`;
   const parts: string[] = [];
   let content = heading;
+  let sectionBreak = false;
   for (const line of lines) {
+    if (!line) { sectionBreak = true; continue; }
     if (heading.length + line.length + 1 > 2000) throw new Error("MEMO_TOO_LONG");
-    if (content.length + line.length + 1 > 2000) { parts.push(content); content = heading; }
-    content += `\n${line}`;
+    let separator = content !== heading && sectionBreak ? "\n\n" : "\n";
+    if (content.length + separator.length + line.length > 2000) { parts.push(content); content = heading; separator = "\n"; }
+    content += separator + line;
+    sectionBreak = false;
   }
   parts.push(content);
   return parts;
